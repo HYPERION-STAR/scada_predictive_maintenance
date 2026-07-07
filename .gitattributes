@@ -1,2 +1,5 @@
+# Git LFS track patterns
+*.pkl
+*.onnx
 *.pkl filter=lfs diff=lfs merge=lfs -text
 *.onnx filter=lfs diff=lfs merge=lfs -text

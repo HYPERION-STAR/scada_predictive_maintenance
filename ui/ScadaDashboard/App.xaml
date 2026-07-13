@@ -28,6 +28,7 @@
 
             <!-- Donusturucular -->
             <local:SeverityToBrushConverter x:Key="SeverityToBrush"/>
+            <local:MachineIdToBrushConverter x:Key="MachineIdToBrush"/>
             <local:PercentConverter x:Key="Percent"/>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 

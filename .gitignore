@@ -25,3 +25,10 @@ Thumbs.db
 
 # Temp
 *.tmp
+
+# .NET / C# UI (Kisi 3)
+[Bb]in/
+[Oo]bj/
+*.user
+logs/
+crash.log

@@ -1,0 +1,244 @@
+<Window x:Class="ScadaDashboard.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:ScadaDashboard.Controls"
+        Title="SCADA Kestirimci Bakim - Canli Izleme"
+        Height="820" Width="1320"
+        MinHeight="600" MinWidth="1000"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI"
+        Background="{StaticResource BgBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ==================== ÜST BAR ==================== -->
+        <Border Grid.Row="0" Background="{StaticResource PanelBrush}" Padding="20,14"
+                BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="SCADA KESTIRIMCI BAKIM" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
+                        <Run Text="Yapay zeka destekli makine sagligi izleme"/>
+                        <Run Text="  •  Veri kaynagi: SIMULASYON" Foreground="#F1C40F"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Ozet sayaclar -->
+                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="TOPLAM" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="{Binding TotalCount}" FontSize="18" FontWeight="Bold"
+                                       Foreground="{StaticResource TextBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="SAGLIKLI" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="{Binding HealthyCount}" FontSize="18" FontWeight="Bold" Foreground="#2ECC71"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="UYARI/RISK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="{Binding WarningCount}" FontSize="18" FontWeight="Bold" Foreground="#F1C40F"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="KRITIK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="{Binding CriticalCount}" FontSize="18" FontWeight="Bold" Foreground="#E74C3C"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding Clock}" VerticalAlignment="Center" Margin="16,0,0,0"
+                               FontSize="13" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== GÖVDE ==================== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="340"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Makine kartlari -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" Padding="14,14,4,14">
+                <ItemsControl ItemsSource="{Binding Machines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="372" Margin="8" Padding="16"
+                                    Background="{StaticResource CardBrush}" CornerRadius="12"
+                                    BorderBrush="{Binding StatusBrush}" BorderThickness="1.5">
+                                <StackPanel>
+                                    <!-- Baslik satiri -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Id}" FontSize="12"
+                                                           Foreground="{StaticResource MutedBrush}"/>
+                                                <TextBlock Text="{Binding Type, StringFormat=' •  {0}'}" FontSize="12"
+                                                           Foreground="{StaticResource MutedBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextBrush}"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="1" VerticalAlignment="Top"
+                                                Background="{Binding StatusBrush}" CornerRadius="6" Padding="10,4">
+                                            <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="Bold"
+                                                       Foreground="#0F1620"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Saglik cubugu -->
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="SAGLIK DURUMU" FontSize="11"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Bottom"/>
+                                        <TextBlock Grid.Column="1" FontSize="20" FontWeight="Bold"
+                                                   Foreground="{Binding StatusBrush}"
+                                                   Text="{Binding HealthScore, Converter={StaticResource Percent}}"/>
+                                    </Grid>
+                                    <ProgressBar Style="{StaticResource HealthBar}" Margin="0,6,0,0"
+                                                 Value="{Binding HealthScore, Mode=OneWay}" Foreground="{Binding StatusBrush}"/>
+
+                                    <!-- RUL + anomali -->
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="KALAN OMUR (RUL)" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"/>
+                                            <TextBlock FontSize="15" Foreground="{StaticResource TextBrush}"
+                                                       Text="{Binding Rul, StringFormat={}{0:0} dongu}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="ANOMALI OLASILIGI" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"/>
+                                            <TextBlock FontSize="15" Foreground="{StaticResource TextBrush}"
+                                                       Text="{Binding AnomalyProbability, StringFormat={}{0:P0}}"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Sensor grafikleri -->
+                                    <StackPanel Margin="0,14,0,0">
+                                        <!-- Sicaklik -->
+                                        <Grid Margin="0,0,0,2">
+                                            <TextBlock Text="Sicaklik" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TempBrush}"
+                                                       Text="{Binding Temperature, StringFormat={}{0:0.0} °C}"/>
+                                        </Grid>
+                                        <c:MiniChart Height="42" Background="{StaticResource TrackBrush}"
+                                                     LineBrush="{StaticResource TempBrush}"
+                                                     Values="{Binding TemperatureHistory}"/>
+
+                                        <!-- Basinc -->
+                                        <Grid Margin="0,8,0,2">
+                                            <TextBlock Text="Basinc" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource PresBrush}"
+                                                       Text="{Binding Pressure, StringFormat={}{0:0.00} bar}"/>
+                                        </Grid>
+                                        <c:MiniChart Height="42" Background="{StaticResource TrackBrush}"
+                                                     LineBrush="{StaticResource PresBrush}"
+                                                     Values="{Binding PressureHistory}"/>
+
+                                        <!-- Titresim -->
+                                        <Grid Margin="0,8,0,2">
+                                            <TextBlock Text="Titresim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource VibBrush}"
+                                                       Text="{Binding Vibration, StringFormat={}{0:0.00} mm/s}"/>
+                                        </Grid>
+                                        <c:MiniChart Height="42" Background="{StaticResource TrackBrush}"
+                                                     LineBrush="{StaticResource VibBrush}"
+                                                     Values="{Binding VibrationHistory}"/>
+                                    </StackPanel>
+
+                                    <!-- Alt: bakim butonu -->
+                                    <Button Style="{StaticResource GhostButton}" Margin="0,14,0,0"
+                                            Content="Bakim Yap" Command="{Binding MaintainCommand}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Uyari paneli -->
+            <Border Grid.Column="1" Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Margin="16,16,16,8">
+                        <TextBlock Text="UYARILAR / OLAYLAR" FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <TextBlock Text="Risk esigi asildiginda e-posta/SMS simule edilir"
+                                   FontSize="11" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12,0,12,12">
+                        <ItemsControl ItemsSource="{Binding Alerts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Margin="0,4" Padding="10,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" CornerRadius="2"
+                                                    Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}"/>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Time}" FontSize="11"
+                                                               Foreground="{StaticResource MutedBrush}"/>
+                                                    <TextBlock Text="{Binding MachineId}" FontSize="11" FontWeight="Bold"
+                                                               Margin="8,0,0,0"
+                                                               Foreground="{Binding Severity, Converter={StaticResource SeverityToBrush}}"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap"
+                                                           Foreground="{StaticResource TextBrush}" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

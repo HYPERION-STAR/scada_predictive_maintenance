@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SCADA Kestirimci Bakim - Kisi 3: C# Masaustu UI (WPF)
+    Endustriyel dashboard: saglik barlari, canli sensor grafikleri, alarm sistemi.
+    Su an SIMULE veri kaynagi kullanir (SimulatorDataSource).
+    Ileride Kisi 2'nin MQTT akisi + Kisi 1'in ONNX modeli baglanacak.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>ScadaDashboard</AssemblyName>
+    <RootNamespace>ScadaDashboard</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+</Project>

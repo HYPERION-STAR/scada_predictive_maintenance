@@ -18,4 +18,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Sadelestirilmis il sinirlari (kaynak: alpers/Turkey-Maps-GeoJSON, Apache-2.0) -->
+    <EmbeddedResource Include="Pipeline\turkey.json" />
+  </ItemGroup>
+
 </Project>

@@ -32,3 +32,7 @@ Thumbs.db
 *.user
 logs/
 crash.log
+
+# Local-only files (never commit)
+Makefile
+WORK_LOG.docx

@@ -42,7 +42,7 @@ public sealed class PipelineSimulator : IPipelineSource
     {
         // İstasyonları farklı başlangıç sağlıklarıyla kur (harita çeşitli görünsün).
         _stations["N2"] = new Station { Rul = 120, DegradePerTick = 0.25 };
-        _stations["N4"] = new Station { Rul = 46, DegradePerTick = 0.32 };
+        _stations["N4"] = new Station { Rul = 22, DegradePerTick = 0.32 };
 
         // Segment taban akışları (mcm/gün).
         _segBaseFlow["S1"] = 55; _segBaseFlow["S2"] = 50; _segBaseFlow["S3"] = 22;

@@ -26,10 +26,28 @@ public partial class MapWindow : Window
             {
                 _source.Tick();
                 Clock.Text = DateTime.Now.ToString("dd.MM.yyyy  HH:mm:ss");
+                UpdateAlarms();
             }
+            if (AlarmBox.Visibility == Visibility.Visible)   // yanip sonme
+                AlarmBox.Opacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.Sin(Environment.TickCount / 250.0));
             Map.InvalidateVisual();
         };
+        UpdateAlarms();
         _render.Start();
+    }
+
+    // Kritik istasyonlari say, ust bar alarm rozetini guncelle.
+    private void UpdateAlarms()
+    {
+        int crit = 0;
+        foreach (var n in PipelineTopology.Nodes)
+            if (n.IsStation && _source.Node(n.Id).Health < 20) crit++;
+        if (crit > 0)
+        {
+            AlarmText.Text = $"⚠  {crit} KRITIK ISTASYON";
+            AlarmBox.Visibility = Visibility.Visible;
+        }
+        else AlarmBox.Visibility = Visibility.Collapsed;
     }
 
     private void OnNodeClicked(PNode n)

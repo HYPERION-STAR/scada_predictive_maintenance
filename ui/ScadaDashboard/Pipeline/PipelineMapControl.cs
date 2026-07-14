@@ -176,6 +176,15 @@ public sealed class PipelineMapControl : Control
                                      : new SolidColorBrush(NodeTypeColor(n.Type));
             var halo = ((SolidColorBrush)fill).Color;
             dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, halo.R, halo.G, halo.B)), null, p, r + 6, r + 6);
+
+            // Kritik istasyon: kirmizi yanip sonen halka (alarm).
+            if (n.IsStation && snap.Health < 20)
+            {
+                double pulse = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 300.0);
+                byte a = (byte)(40 + pulse * 190);
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(a, 0xE7, 0x4C, 0x3C)), 3), p, r + 10, r + 10);
+            }
+
             dc.DrawEllipse(fill, new Pen(new SolidColorBrush(Bg), 2), p, r, r);
 
             var name = Text(n.Name, 11.5, TextCol, dpi);

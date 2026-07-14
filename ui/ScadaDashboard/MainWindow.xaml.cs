@@ -22,6 +22,14 @@ public partial class MainWindow : Window
         DataContext = new MainViewModel(dataSource, alerts);
     }
 
+    // Belirli bir istasyonun uniteleri icin (haritadan acilir) - ayni kart UI'si.
+    public MainWindow(IDataSource source, string title)
+    {
+        InitializeComponent();
+        Title = title;
+        DataContext = new MainViewModel(source, new AlertService());
+    }
+
     // Boru hatti canli haritasini ac.
     private void OpenMap_Click(object sender, RoutedEventArgs e) => new MapWindow().Show();
 

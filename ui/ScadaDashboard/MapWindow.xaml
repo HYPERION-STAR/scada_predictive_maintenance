@@ -76,6 +76,11 @@
                         </StackPanel>
                     </Grid>
 
+                    <Button x:Name="UnitsButton" Content="Uniteleri Ac" Click="OpenUnits_Click"
+                            AutomationProperties.AutomationId="UnitsButton"
+                            Style="{StaticResource GhostButton}" Margin="0,12,0,0" Padding="10,6"
+                            HorizontalAlignment="Left"/>
+
                     <Grid Margin="0,16,0,2">
                         <TextBlock Text="Titresim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                         <TextBlock x:Name="VibVal" HorizontalAlignment="Right" FontSize="12" Foreground="#FFD166"/>

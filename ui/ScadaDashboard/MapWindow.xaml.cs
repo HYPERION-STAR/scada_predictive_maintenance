@@ -24,6 +24,9 @@ public partial class MapWindow : Window
         _source = string.IsNullOrWhiteSpace(hub) ? new PipelineSimulator() : new HttpPipelineSource(hub);
         if (!string.IsNullOrWhiteSpace(hub)) SourceLabel.Text = "  •  Veri kaynagi: API HUB";
 
+        // Uniteler yalnizca simulasyon kaynagi ile (Hub'da uniteler ileride).
+        UnitsButton.Visibility = _source is PipelineSimulator ? Visibility.Visible : Visibility.Collapsed;
+
         Map.Source = _source;
         Map.NodeClicked += OnNodeClicked;
 
@@ -83,6 +86,14 @@ public partial class MapWindow : Window
     {
         _selected = null;
         Detail.Visibility = Visibility.Collapsed;
+    }
+
+    // Secili istasyonun unitelerini makine karti panelinde ac (ortak sim).
+    private void OpenUnits_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selected != null && _source is PipelineSimulator sim)
+            new MainWindow(new StationDataSource(sim, _selected), $"{DetailName.Text} - Uniteler")
+                { Owner = this }.Show();
     }
 
     private void UpdateDetail()

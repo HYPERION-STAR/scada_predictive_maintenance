@@ -25,7 +25,7 @@
                                Foreground="{StaticResource TextBrush}"/>
                     <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
                         <Run Text="Ag sagligi ve akis izleme"/>
-                        <Run Text="  •  Veri kaynagi: SIMULASYON" Foreground="#F1C40F"/>
+                        <Run x:Name="SourceLabel" Text="  •  Veri kaynagi: SIMULASYON" Foreground="#F1C40F"/>
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">

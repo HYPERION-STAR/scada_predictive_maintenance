@@ -7,7 +7,7 @@ namespace ScadaDashboard;
 
 public partial class MapWindow : Window
 {
-    private readonly PipelineSimulator _source = new();
+    private readonly IPipelineSource _source;
     private readonly DispatcherTimer _render;
     private int _renderTicks;
 
@@ -17,6 +17,12 @@ public partial class MapWindow : Window
     public MapWindow()
     {
         InitializeComponent();
+
+        // Veri kaynagi: SCADA_HUB_URL ayarli ise API Hub (HTTP), yoksa simulasyon.
+        // Boylece Kisi 2'nin Hub'i olmadan da UI bagimsiz calisir.
+        var hub = Environment.GetEnvironmentVariable("SCADA_HUB_URL");
+        _source = string.IsNullOrWhiteSpace(hub) ? new PipelineSimulator() : new HttpPipelineSource(hub);
+        if (!string.IsNullOrWhiteSpace(hub)) SourceLabel.Text = "  •  Veri kaynagi: API HUB";
 
         Map.Source = _source;
         Map.NodeClicked += OnNodeClicked;

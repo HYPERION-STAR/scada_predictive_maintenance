@@ -36,9 +36,15 @@ public sealed class PipelineMapControl : Control
     private bool _hoverSeg;
     private Point _mouse;
 
-    // Provins geometrisi ekran boyutuna gore cache'lenir (her karede yeniden kurma).
+    // Provins geometrisi cache (boyut/zoom/pan degisince yeniden kurulur).
     private Geometry? _provGeo;
-    private double _provW, _provH;
+    private double _pkW, _pkH, _pkZoom = 1, _pkPanX, _pkPanY;
+
+    // Zoom + pan durumu.
+    private double _zoom = 1, _panX, _panY;
+    private bool _dragging, _moved;
+    private Point _dragStart;
+    private double _panStartX, _panStartY;
 
     // Il sinirlarinin cografi kutusu (bir kez hesaplanir).
     private static bool _bboxReady;
@@ -100,7 +106,7 @@ public sealed class PipelineMapControl : Control
         var nodes = PipelineTopology.Nodes;
         bool hasMap = TurkeyMap.Provinces.Count > 0 && _maxLon > _minLon;
 
-        Func<double, double, Point> project;
+        Func<double, double, Point> geoProj;
         if (hasMap)
         {
             // En-boy düzeltmeli projeksiyon: boylam dereceleri enlem cos'u kadar kısalır.
@@ -112,25 +118,35 @@ public sealed class PipelineMapControl : Control
             double scale = Math.Min((w - 2 * pad) / scaledW, (h - 2 * pad) / scaledH);
             double ox = (w - scaledW * scale) / 2.0;
             double oy = (h - scaledH * scale) / 2.0;
-            project = (lat, lon) => new Point(ox + (lon - _minLon) * k * scale, oy + (_maxLat - lat) * scale);
-
-            // Provins geometrisi (boyut degistiyse yeniden kur).
-            if (_provGeo == null || _provW != w || _provH != h)
-            {
-                _provGeo = BuildProvinceGeometry(project);
-                _provW = w; _provH = h;
-            }
-            dc.DrawGeometry(new SolidColorBrush(Land),
-                            new Pen(new SolidColorBrush(Province), 0.7), _provGeo);
+            geoProj = (lat, lon) => new Point(ox + (lon - _minLon) * k * scale, oy + (_maxLat - lat) * scale);
         }
         else
         {
             double minLat = nodes.Min(n => n.Lat), maxLat = nodes.Max(n => n.Lat);
             double minLon = nodes.Min(n => n.Lon), maxLon = nodes.Max(n => n.Lon);
             const double pad = 70;
-            project = (lat, lon) => new Point(
+            geoProj = (lat, lon) => new Point(
                 pad + (lon - minLon) / Math.Max(1e-6, maxLon - minLon) * (w - 2 * pad),
                 pad + (maxLat - lat) / Math.Max(1e-6, maxLat - minLat) * (h - 2 * pad));
+        }
+
+        // Zoom + pan (etiketler sabit boyutta kalır, konumlar dönüşür).
+        Func<double, double, Point> project = (lat, lon) =>
+        {
+            var b = geoProj(lat, lon);
+            return new Point(b.X * _zoom + _panX, b.Y * _zoom + _panY);
+        };
+
+        if (hasMap)
+        {
+            if (_provGeo == null || _pkW != w || _pkH != h
+                || _pkZoom != _zoom || _pkPanX != _panX || _pkPanY != _panY)
+            {
+                _provGeo = BuildProvinceGeometry(project);
+                _pkW = w; _pkH = h; _pkZoom = _zoom; _pkPanX = _panX; _pkPanY = _panY;
+            }
+            dc.DrawGeometry(new SolidColorBrush(Land),
+                            new Pen(new SolidColorBrush(Province), 0.7), _provGeo);
         }
 
         _screen.Clear();
@@ -273,20 +289,34 @@ public sealed class PipelineMapControl : Control
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
+        _dragging = true; _moved = false;
+        _dragStart = e.GetPosition(this);
+        _panStartX = _panX; _panStartY = _panY;
+        CaptureMouse();
+    }
+
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        _dragging = false; ReleaseMouseCapture();
+        if (_moved) return; // sürüklemeyse tıklama sayma
         var click = e.GetPosition(this);
         foreach (var n in PipelineTopology.Nodes)
-        {
             if (_screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
-            {
-                NodeClicked?.Invoke(n);
-                break;
-            }
-        }
+            { NodeClicked?.Invoke(n); break; }
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         _mouse = e.GetPosition(this);
+        if (_dragging)
+        {
+            var d = _mouse - _dragStart;
+            if (d.Length > 3) _moved = true;
+            _panX = _panStartX + d.X; _panY = _panStartY + d.Y;
+            _hoverId = null;
+            InvalidateVisual();
+            return;
+        }
         _hoverId = null;
         foreach (var n in PipelineTopology.Nodes)
             if (_screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
@@ -298,6 +328,25 @@ public sealed class PipelineMapControl : Control
     }
 
     protected override void OnMouseLeave(MouseEventArgs e) => _hoverId = null;
+
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        double f = e.Delta > 0 ? 1.15 : 1 / 1.15;
+        double nz = Math.Clamp(_zoom * f, 1.0, 6.0);
+        f = nz / _zoom;
+        var m = e.GetPosition(this);
+        _panX = m.X - (m.X - _panX) * f;   // imlec altindaki nokta sabit kalir
+        _panY = m.Y - (m.Y - _panY) * f;
+        _zoom = nz;
+        if (_zoom <= 1.0001) { _zoom = 1; _panX = 0; _panY = 0; } // tam sigdir
+        InvalidateVisual();
+    }
+
+    protected override void OnMouseDoubleClick(MouseButtonEventArgs e)
+    {
+        _zoom = 1; _panX = 0; _panY = 0; // sifirla
+        InvalidateVisual();
+    }
 
     private static double DistToSeg(Point p, Point a, Point b)
     {

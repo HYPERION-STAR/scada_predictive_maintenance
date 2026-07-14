@@ -22,6 +22,7 @@ public static class PipelineTopology
         new("N5", "Dogu Cikis",         "OFFTAKE",  39.9, 41.3, false),
         new("N6", "Bati Cikis",         "OFFTAKE",  38.4, 27.1, false),
         new("N7", "Dogu Giris",         "BORDER",   39.7, 44.0, false),
+        new("N8", "Marmara Deposu",     "STORAGE",  40.5, 27.5, false),
     };
 
     public static readonly IReadOnlyList<PSegment> Segments = new List<PSegment>
@@ -32,6 +33,7 @@ public static class PipelineTopology
         new("S4", "N3", "N4", "gas"),
         new("S5", "N4", "N5", "gas"),
         new("S6", "N7", "N4", "gas"),
+        new("S7", "N2", "N8", "gas"),
     };
 
     public static PNode NodeById(string id) => Nodes.First(n => n.Id == id);

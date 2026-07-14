@@ -21,6 +21,7 @@ public interface IPipelineSource
     NodeSnap Node(string id);
     SegSnap Segment(string id);
     StationSensors Sensors(string id);
+    double Level(string id); // depo doluluk %0-100 (depo degilse 0)
 }
 
 /// <summary>
@@ -56,6 +57,7 @@ public sealed class PipelineSimulator : IPipelineSource
 
         _segBaseFlow["S1"] = 55; _segBaseFlow["S2"] = 50; _segBaseFlow["S3"] = 22;
         _segBaseFlow["S4"] = 30; _segBaseFlow["S5"] = 18; _segBaseFlow["S6"] = 20;
+        _segBaseFlow["S7"] = 15;
     }
 
     private void AddStation(string stationId, params (string Id, string Name, double Rul, double Deg)[] units)
@@ -161,6 +163,10 @@ public sealed class PipelineSimulator : IPipelineSource
     {
         if (_unitById.TryGetValue(unitId, out var u)) { u.Rul = MaxRul; u.FailedTicks = 0; }
     }
+
+    // Depo doluluk (enjeksiyon/cekis dalgalanmasi).
+    public double Level(string id) =>
+        id == "N8" ? Math.Round(55 + 30 * Math.Sin(_tick / 50.0), 0) : 0;
 
     private double Noise(double a) => (_rng.NextDouble() - 0.5) * 2 * a;
 }

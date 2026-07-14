@@ -125,7 +125,9 @@
                     <Ellipse Width="10" Height="10" Fill="#4E9BF5" Margin="0,0,4,0"/>
                     <TextBlock Text="Sinir" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#C58AF5" Margin="0,0,4,0"/>
-                    <TextBlock Text="Cikis" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Cikis" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <Ellipse Width="10" Height="10" Fill="#4ECDC4" Margin="0,0,4,0"/>
+                    <TextBlock Text="Depo" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,20,0" VerticalAlignment="Center"/>
 
                     <TextBlock Text="Akis: dusuk" FontSize="11" Foreground="#4ECDC4" VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <TextBlock Text="—&gt;" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>

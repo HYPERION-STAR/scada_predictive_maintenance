@@ -73,6 +73,7 @@ public sealed class PipelineMapControl : Control
     {
         "BORDER" => Color.FromRgb(0x4E, 0x9B, 0xF5),
         "OFFTAKE" => Color.FromRgb(0xC5, 0x8A, 0xF5),
+        "STORAGE" => Color.FromRgb(0x4E, 0xCD, 0xC4),
         _ => Color.FromRgb(0x8C, 0xA3, 0xB8),
     };
 
@@ -211,9 +212,23 @@ public sealed class PipelineMapControl : Control
 
             dc.DrawEllipse(fill, new Pen(new SolidColorBrush(Bg), 2), p, r, r);
 
+            // Depo: yandan tank doluluk gostergesi.
+            if (n.Type == "STORAGE")
+            {
+                double lvl = _source.Level(n.Id);
+                var tank = new Rect(p.X + r + 6, p.Y - 12, 11, 24);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)),
+                    new Pen(new SolidColorBrush(MutedCol), 1), tank);
+                double fh = tank.Height * Math.Clamp(lvl, 0, 100) / 100.0;
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x4E, 0xCD, 0xC4)), null,
+                    new Rect(tank.X, tank.Bottom - fh, tank.Width, fh));
+            }
+
             var name = Text(n.Name, 11.5, TextCol, dpi);
             DrawLabel(dc, name, new Point(p.X - name.Width / 2, p.Y + r + 4));
-            string sub = n.IsStation ? $"%{snap.Health:0}  •  RUL {snap.Rul:0}" : n.Type;
+            string sub = n.IsStation ? $"%{snap.Health:0}  •  RUL {snap.Rul:0}"
+                       : n.Type == "STORAGE" ? $"DEPO  %{_source.Level(n.Id):0}"
+                       : n.Type;
             var subFt = Text(sub, 10, MutedCol, dpi);
             DrawLabel(dc, subFt, new Point(p.X - subFt.Width / 2, p.Y + r + 20));
         }

@@ -61,6 +61,7 @@ public sealed class HttpPipelineSource : IPipelineSource
     public NodeSnap Node(string id) => _nodes.TryGetValue(id, out var v) ? v : new NodeSnap(100, 130, false);
     public SegSnap Segment(string id) => _segs.TryGetValue(id, out var v) ? v : new SegSnap(0, 0, false);
     public StationSensors Sensors(string id) => _sensors.TryGetValue(id, out var v) ? v : default;
+    public double Level(string id) => 0; // Hub'dan depo doluluk ileride eklenecek
 
     private sealed class HubState
     {

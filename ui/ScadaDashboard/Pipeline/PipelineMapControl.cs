@@ -167,17 +167,25 @@ public sealed class PipelineMapControl : Control
             }
 
             var mid = new Point((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
-            var ft = Text($"{snap.FlowMcmDay:0} mcm/g", 10.5, MutedCol, dpi);
-            dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(150, Bg.R, Bg.G, Bg.B)), null,
-                new Rect(mid.X - ft.Width / 2 - 3, mid.Y - 17, ft.Width + 6, ft.Height + 2));
-            dc.DrawText(ft, new Point(mid.X - ft.Width / 2, mid.Y - 16));
+            var seg2 = p2 - p1; double segLen = seg2.Length;
+            var dir = seg2; if (segLen > 0) dir.Normalize();
+            var perp = new Vector(-dir.Y, dir.X); if (perp.Y > 0) perp.Negate(); // etiket yukari tarafa
+            var lc = new Point(mid.X + perp.X * 16, mid.Y + perp.Y * 16);
+            if (segLen > 150) // kisa segmentte etiket dugum yazilariyla cakisir, atla
+            {
+                var ft = Text($"{snap.FlowMcmDay:0} mcm/g", 10.5, MutedCol, dpi);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(150, Bg.R, Bg.G, Bg.B)), null,
+                    new Rect(lc.X - ft.Width / 2 - 3, lc.Y - ft.Height / 2 - 1, ft.Width + 6, ft.Height + 2));
+                dc.DrawText(ft, new Point(lc.X - ft.Width / 2, lc.Y - ft.Height / 2));
+            }
 
             if (snap.Leak)
             {
+                var lc2 = new Point(mid.X - perp.X * 16, mid.Y - perp.Y * 16); // diger tarafa
                 var lft = Text("⚠ SIZINTI", 11, Color.FromRgb(0xE7, 0x4C, 0x3C), dpi);
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(170, Bg.R, Bg.G, Bg.B)), null,
-                    new Rect(mid.X - lft.Width / 2 - 3, mid.Y + 2, lft.Width + 6, lft.Height + 2));
-                dc.DrawText(lft, new Point(mid.X - lft.Width / 2, mid.Y + 3));
+                    new Rect(lc2.X - lft.Width / 2 - 3, lc2.Y - lft.Height / 2 - 1, lft.Width + 6, lft.Height + 2));
+                dc.DrawText(lft, new Point(lc2.X - lft.Width / 2, lc2.Y - lft.Height / 2));
             }
         }
 

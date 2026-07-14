@@ -32,6 +32,10 @@ public sealed class PipelineMapControl : Control
 
     private readonly Dictionary<string, Point> _screen = new();
 
+    private string? _hoverId;   // uzerine gelinen dugum/segment
+    private bool _hoverSeg;
+    private Point _mouse;
+
     // Provins geometrisi ekran boyutuna gore cache'lenir (her karede yeniden kurma).
     private Geometry? _provGeo;
     private double _provW, _provH;
@@ -232,6 +236,8 @@ public sealed class PipelineMapControl : Control
             var subFt = Text(sub, 10, MutedCol, dpi);
             DrawLabel(dc, subFt, new Point(p.X - subFt.Width / 2, p.Y + r + 20));
         }
+
+        DrawTooltip(dc, dpi);
     }
 
     private Geometry BuildProvinceGeometry(Func<double, double, Point> project)
@@ -276,5 +282,65 @@ public sealed class PipelineMapControl : Control
                 break;
             }
         }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        _mouse = e.GetPosition(this);
+        _hoverId = null;
+        foreach (var n in PipelineTopology.Nodes)
+            if (_screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
+            { _hoverId = n.Id; _hoverSeg = false; return; }
+        foreach (var s in PipelineTopology.Segments)
+            if (_screen.TryGetValue(s.From, out var a) && _screen.TryGetValue(s.To, out var b)
+                && DistToSeg(_mouse, a, b) <= 7)
+            { _hoverId = s.Id; _hoverSeg = true; return; }
+    }
+
+    protected override void OnMouseLeave(MouseEventArgs e) => _hoverId = null;
+
+    private static double DistToSeg(Point p, Point a, Point b)
+    {
+        var ab = b - a; double len2 = ab.LengthSquared;
+        if (len2 < 1e-6) return (p - a).Length;
+        double t = Math.Clamp(((p - a) * ab) / len2, 0, 1);
+        return (p - (a + ab * t)).Length;
+    }
+
+    private void DrawTooltip(DrawingContext dc, double dpi)
+    {
+        if (_hoverId == null || _source == null) return;
+        string text;
+        if (_hoverSeg)
+        {
+            var s = PipelineTopology.Segments.First(x => x.Id == _hoverId);
+            var snap = _source.Segment(s.Id);
+            text = $"{s.Id}   {s.From} → {s.To}\nAkis: {snap.FlowMcmDay:0} mcm/gun"
+                 + (snap.Leak ? "\n⚠ SIZINTI" : "");
+        }
+        else
+        {
+            var n = PipelineTopology.NodeById(_hoverId);
+            if (n.IsStation)
+            {
+                var snap = _source.Node(n.Id);
+                string durum = snap.Health >= 70 ? "SAGLIKLI" : snap.Health >= 40 ? "UYARI"
+                             : snap.Health >= 20 ? "RISKLI" : "KRITIK";
+                text = $"{n.Id}  {n.Name}\n{durum}   %{snap.Health:0}   RUL {snap.Rul:0}";
+            }
+            else if (n.Type == "STORAGE")
+                text = $"{n.Id}  {n.Name}\nDepo doluluk: %{_source.Level(n.Id):0}";
+            else
+                text = $"{n.Id}  {n.Name}\n{n.Type}";
+        }
+
+        var ft = Text(text, 11.5, TextCol, dpi);
+        double pad = 8, w = ft.Width + 2 * pad, h = ft.Height + 2 * pad;
+        double x = Math.Min(_mouse.X + 14, ActualWidth - w - 4);
+        double y = Math.Min(_mouse.Y + 14, ActualHeight - h - 4);
+        var rect = new Rect(x, y, w, h);
+        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x1A, 0x26, 0x34)),
+            new Pen(new SolidColorBrush(Province), 1), rect);
+        dc.DrawText(ft, new Point(x + pad, y + pad));
     }
 }

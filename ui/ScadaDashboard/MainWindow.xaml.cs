@@ -30,9 +30,6 @@ public partial class MainWindow : Window
         DataContext = new MainViewModel(source, new AlertService());
     }
 
-    // Boru hatti canli haritasini ac.
-    private void OpenMap_Click(object sender, RoutedEventArgs e) => new MapWindow().Show();
-
     // Alt uyari panelini kucult / geri ac.
     private void ToggleAlerts_Click(object sender, RoutedEventArgs e)
     {

@@ -50,6 +50,9 @@ public partial class MapWindow : Window
         _render.Start();
     }
 
+    // Genel makine panelini ac (5 jenerik makine).
+    private void OpenDashboard_Click(object sender, RoutedEventArgs e) => new MainWindow().Show();
+
     // Kritik istasyonlari say, ust bar alarm rozetini guncelle.
     private void UpdateAlarms()
     {

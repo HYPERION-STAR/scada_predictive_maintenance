@@ -34,9 +34,6 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource GhostButton}" Content="Boru Hatti Haritasi"
-                            AutomationProperties.AutomationId="OpenMap"
-                            Click="OpenMap_Click" Padding="12,6" Margin="0,0,14,0"/>
                     <!-- Ozet sayaclar -->
                     <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
                             BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">

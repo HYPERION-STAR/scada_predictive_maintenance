@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using ScadaDashboard.Pipeline;
 
@@ -9,6 +10,9 @@ public partial class MapWindow : Window
     private readonly PipelineSimulator _source = new();
     private readonly DispatcherTimer _render;
     private int _renderTicks;
+
+    private string? _selected;                         // acik detay istasyonu
+    private readonly List<double> _vib = new(), _bt = new(), _dp = new();
 
     public MapWindow()
     {
@@ -27,6 +31,7 @@ public partial class MapWindow : Window
                 _source.Tick();
                 Clock.Text = DateTime.Now.ToString("dd.MM.yyyy  HH:mm:ss");
                 UpdateAlarms();
+                if (_selected != null) UpdateDetail();
             }
             if (AlarmBox.Visibility == Visibility.Visible)   // yanip sonme
                 AlarmBox.Opacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.Sin(Environment.TickCount / 250.0));
@@ -54,15 +59,52 @@ public partial class MapWindow : Window
     {
         if (n.IsStation)
         {
-            var s = _source.Node(n.Id);
-            string durum = s.Health >= 70 ? "SAGLIKLI" : s.Health >= 40 ? "UYARI"
-                         : s.Health >= 20 ? "RISKLI" : "KRITIK";
-            SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {durum}   Saglik %{s.Health:0}   Kalan omur {s.Rul:0} dongu";
+            _selected = n.Id;
+            _vib.Clear(); _bt.Clear(); _dp.Clear();
+            DetailId.Text = n.Id;
+            DetailName.Text = n.Name;
+            Detail.Visibility = Visibility.Visible;
+            UpdateDetail();
+            SelectedInfo.Text = $"{n.Id}  {n.Name}";
         }
         else
         {
             SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme disi)";
         }
+    }
+
+    private void CloseDetail_Click(object sender, RoutedEventArgs e)
+    {
+        _selected = null;
+        Detail.Visibility = Visibility.Collapsed;
+    }
+
+    private void UpdateDetail()
+    {
+        if (_selected == null) return;
+        var snap = _source.Node(_selected);
+        var s = _source.Sensors(_selected);
+        Push(_vib, s.Vibration); Push(_bt, s.BearingTemp); Push(_dp, s.DischargePressure);
+        VibChart.Values = _vib.ToArray(); BtChart.Values = _bt.ToArray(); DpChart.Values = _dp.ToArray();
+        VibVal.Text = $"{s.Vibration:0.00} mm/s";
+        BtVal.Text = $"{s.BearingTemp:0.0} °C";
+        DpVal.Text = $"{s.DischargePressure:0.00} bar";
+        DetailRul.Text = $"{snap.Rul:0} dongu";
+        DetailHealth.Text = $"%{snap.Health:0}";
+        string durum = snap.Health >= 70 ? "SAGLIKLI" : snap.Health >= 40 ? "UYARI"
+                     : snap.Health >= 20 ? "RISKLI" : "KRITIK";
+        DetailStatus.Text = durum;
+        DetailStatusBox.Background = new SolidColorBrush(
+            snap.Health >= 70 ? Color.FromRgb(0x2E, 0xCC, 0x71)
+          : snap.Health >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
+          : snap.Health >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
+          : Color.FromRgb(0xE7, 0x4C, 0x3C));
+    }
+
+    private static void Push(List<double> buf, double v)
+    {
+        buf.Add(v);
+        if (buf.Count > 60) buf.RemoveAt(0);
     }
 
     protected override void OnClosed(EventArgs e)

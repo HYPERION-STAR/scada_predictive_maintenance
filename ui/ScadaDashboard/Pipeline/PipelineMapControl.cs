@@ -231,7 +231,7 @@ public sealed class PipelineMapControl : Control
         var click = e.GetPosition(this);
         foreach (var n in PipelineTopology.Nodes)
         {
-            if (_screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 16)
+            if (_screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
             {
                 NodeClicked?.Invoke(n);
                 break;

@@ -6,6 +6,9 @@ public readonly record struct NodeSnap(double Health, double Rul, bool IsStation
 /// <summary>Bir segmentin anlık durumu (akış + doluluk oranı 0..1).</summary>
 public readonly record struct SegSnap(double FlowMcmDay, double LoadRatio);
 
+/// <summary>İstasyon detay sensörleri (kart grafikleri için).</summary>
+public readonly record struct StationSensors(double Vibration, double BearingTemp, double DischargePressure);
+
 /// <summary>
 /// Canlı harita veri kaynağı soyutlaması. Bugün SIMULE; ileride gerçek akışa
 /// (Kişi 2 MQTT + Kişi 1 model) bağlanacak — harita değişmeden.
@@ -15,6 +18,7 @@ public interface IPipelineSource
     void Tick();
     NodeSnap Node(string id);
     SegSnap Segment(string id);
+    StationSensors Sensors(string id);
 }
 
 /// <summary>
@@ -90,4 +94,19 @@ public sealed class PipelineSimulator : IPipelineSource
         double load = Math.Clamp(flow / 60.0, 0, 1);
         return new SegSnap(Math.Round(flow, 1), load);
     }
+
+    public StationSensors Sensors(string id)
+    {
+        if (_stations.TryGetValue(id, out var s))
+        {
+            double d = Math.Clamp(1.0 - s.Rul / MaxRul, 0, 1);
+            double vib = 2.0 + d * 7.0 + Noise(0.2);
+            double bt = 70.0 + d * 28.0 + Noise(0.6);
+            double dp = Math.Max(1.0, 75.0 - d * 10.0 + Noise(0.3));
+            return new StationSensors(Math.Round(vib, 2), Math.Round(bt, 1), Math.Round(dp, 2));
+        }
+        return default;
+    }
+
+    private double Noise(double a) => (_rng.NextDouble() - 0.5) * 2 * a;
 }

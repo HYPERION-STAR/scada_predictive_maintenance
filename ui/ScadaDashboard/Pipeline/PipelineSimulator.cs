@@ -5,8 +5,8 @@ namespace ScadaDashboard.Pipeline;
 /// <summary>Bir düğümün anlık durumu (istasyonlar için sağlık/RUL).</summary>
 public readonly record struct NodeSnap(double Health, double Rul, bool IsStation);
 
-/// <summary>Bir segmentin anlık durumu (akış + doluluk oranı 0..1).</summary>
-public readonly record struct SegSnap(double FlowMcmDay, double LoadRatio);
+/// <summary>Bir segmentin anlık durumu (akış + doluluk oranı 0..1 + sızıntı).</summary>
+public readonly record struct SegSnap(double FlowMcmDay, double LoadRatio, bool Leak);
 
 /// <summary>İstasyon detay sensörleri (yan panel grafikleri için).</summary>
 public readonly record struct StationSensors(double Vibration, double BearingTemp, double DischargePressure);
@@ -113,7 +113,9 @@ public sealed class PipelineSimulator : IPipelineSource
         double peak = Math.Max(0, Math.Sin(2 * Math.PI * (hour - 6) / 24));
         double flow = baseFlow * (0.75 + 0.35 * peak) + (_rng.NextDouble() - 0.5) * 2;
         double load = Math.Clamp(flow / 60.0, 0, 1);
-        return new SegSnap(Math.Round(flow, 1), load);
+        // S4 segmentinde periyodik sizinti (kutle dengesizligi) - alarm demosu.
+        bool leak = id == "S4" && _tick % 40 >= 26 && _tick % 40 < 36;
+        return new SegSnap(Math.Round(flow, 1), load, leak);
     }
 
     public StationSensors Sensors(string id)

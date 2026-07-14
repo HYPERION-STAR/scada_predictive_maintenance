@@ -51,7 +51,7 @@ public sealed class HttpPipelineSource : IPipelineSource
             }
             var segs = new Dictionary<string, SegSnap>();
             foreach (var seg in state.Segments)
-                segs[seg.Id] = new SegSnap(seg.Flow, Math.Clamp(seg.Load, 0, 1));
+                segs[seg.Id] = new SegSnap(seg.Flow, Math.Clamp(seg.Load, 0, 1), seg.Leak);
 
             _nodes = nodes; _segs = segs; _sensors = sensors; // atomik referans degisimi
         }
@@ -59,7 +59,7 @@ public sealed class HttpPipelineSource : IPipelineSource
     }
 
     public NodeSnap Node(string id) => _nodes.TryGetValue(id, out var v) ? v : new NodeSnap(100, 130, false);
-    public SegSnap Segment(string id) => _segs.TryGetValue(id, out var v) ? v : new SegSnap(0, 0);
+    public SegSnap Segment(string id) => _segs.TryGetValue(id, out var v) ? v : new SegSnap(0, 0, false);
     public StationSensors Sensors(string id) => _sensors.TryGetValue(id, out var v) ? v : default;
 
     private sealed class HubState
@@ -83,5 +83,6 @@ public sealed class HttpPipelineSource : IPipelineSource
         public string Id { get; set; } = "";
         public double Flow { get; set; }
         public double Load { get; set; }
+        public bool Leak { get; set; }
     }
 }

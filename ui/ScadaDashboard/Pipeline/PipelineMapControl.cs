@@ -149,6 +149,14 @@ public sealed class PipelineMapControl : Control
             dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(90, col.R, col.G, col.B)), thick + 3), p1, p2);
             dc.DrawLine(new Pen(new SolidColorBrush(col), thick), p1, p2);
 
+            // Sizinti: yanip sonen kirmizi kalin katman.
+            if (snap.Leak)
+            {
+                double lp = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 200.0);
+                byte la = (byte)(60 + lp * 190);
+                dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(la, 0xE7, 0x4C, 0x3C)), thick + 7), p1, p2);
+            }
+
             var dotBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xEE, 0xF6));
             const int dots = 4;
             for (int i = 0; i < dots; i++)
@@ -163,6 +171,14 @@ public sealed class PipelineMapControl : Control
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(150, Bg.R, Bg.G, Bg.B)), null,
                 new Rect(mid.X - ft.Width / 2 - 3, mid.Y - 17, ft.Width + 6, ft.Height + 2));
             dc.DrawText(ft, new Point(mid.X - ft.Width / 2, mid.Y - 16));
+
+            if (snap.Leak)
+            {
+                var lft = Text("⚠ SIZINTI", 11, Color.FromRgb(0xE7, 0x4C, 0x3C), dpi);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(170, Bg.R, Bg.G, Bg.B)), null,
+                    new Rect(mid.X - lft.Width / 2 - 3, mid.Y + 2, lft.Width + 6, lft.Height + 2));
+                dc.DrawText(lft, new Point(mid.X - lft.Width / 2, mid.Y + 3));
+            }
         }
 
         // --- Düğümler ---

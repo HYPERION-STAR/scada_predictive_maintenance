@@ -16,6 +16,8 @@
     <AssemblyName>ScadaDashboard</AssemblyName>
     <RootNamespace>ScadaDashboard</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Uygulama ikonu: koyu zemin + ag motifi (scratch uretimi, cok boyutlu) -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

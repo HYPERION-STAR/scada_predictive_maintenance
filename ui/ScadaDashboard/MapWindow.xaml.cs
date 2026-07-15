@@ -5,6 +5,9 @@ using ScadaDashboard.Pipeline;
 
 namespace ScadaDashboard;
 
+/// <summary>Detay panelindeki tek sensör satırı (ad + değer).</summary>
+public sealed record SensorRow(string Name, string Value);
+
 public partial class MapWindow : Window
 {
     private readonly IPipelineSource _source;
@@ -127,6 +130,7 @@ public partial class MapWindow : Window
             DetailName.Text = n.Name;
             Detail.Visibility = Visibility.Visible;
             UpdateDetail();
+            UpdateSensorList(n.Id);
             SelectedInfo.Text = $"{n.Id}  {n.Name}";
         }
         else
@@ -175,6 +179,73 @@ public partial class MapWindow : Window
           : snap.Health >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
           : snap.Health >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
           : Color.FromRgb(0xE7, 0x4C, 0x3C));
+    }
+
+    // 21 kompresor sensoru: anahtar -> (Turkce ad, birim). Bilinmeyene jenerik ad.
+    private static readonly Dictionary<string, (string Ad, string Birim)> SensorAdlari = new()
+    {
+        ["s_1_suction_pressure_bar"] = ("Emme Basıncı", "bar"),
+        ["s_2_discharge_pressure_bar"] = ("Basma Basıncı", "bar"),
+        ["s_3_pressure_ratio"] = ("Basınç Oranı", ""),
+        ["s_4_suction_temp_c"] = ("Emme Sıcaklığı", "°C"),
+        ["s_5_discharge_temp_c"] = ("Basma Sıcaklığı", "°C"),
+        ["s_6_shaft_rpm"] = ("Şaft Devri", "rpm"),
+        ["s_7_vibration_de_mm_s"] = ("Titreşim (DE)", "mm/s"),
+        ["s_8_vibration_nde_mm_s"] = ("Titreşim (NDE)", "mm/s"),
+        ["s_9_axial_displacement_mm"] = ("Eksenel Kayma", "mm"),
+        ["s_10_bearing_temp_1_c"] = ("Yatak Sıcaklığı 1", "°C"),
+        ["s_11_bearing_temp_2_c"] = ("Yatak Sıcaklığı 2", "°C"),
+        ["s_12_lube_oil_pressure_bar"] = ("Yağlama Yağı Basıncı", "bar"),
+        ["s_13_lube_oil_temp_c"] = ("Yağlama Yağı Sıcaklığı", "°C"),
+        ["s_14_gas_flow_meter_m3_h"] = ("Gaz Akış Sayacı", "m³/sa"),
+        ["s_15_seal_gas_pressure_bar"] = ("Sızdırmazlık Gazı Basıncı", "bar"),
+        ["s_16_gas_flow_m3_h"] = ("Gaz Akışı", "m³/sa"),
+        ["s_17_power_mw"] = ("Güç", "MW"),
+        ["s_18_polytropic_efficiency"] = ("Politropik Verim", ""),
+        ["s_19_surge_margin_pct"] = ("Surge Marjı", "%"),
+        ["s_20_filter_dp_bar"] = ("Filtre ΔP", "bar"),
+        ["s_21_torque_nm"] = ("Tork", "Nm"),
+    };
+
+    // Detay panelinin sensor listesini doldur (yalnizca snapshot kaynaginda).
+    private void UpdateSensorList(string stationId)
+    {
+        if (_source is SnapshotSource snap && snap.WorstUnitSensors(stationId) is { } wu)
+        {
+            SensorHeader.Text = $"TÜM SENSÖRLER — {wu.UnitId} (EN KÖTÜ ÜNİTE)";
+            SensorList.ItemsSource = wu.Sensors
+                .Where(kv => kv.Key.StartsWith("s_"))
+                .OrderBy(kv => SensorSira(kv.Key))
+                .Select(kv =>
+                {
+                    var (ad, birim) = SensorAdlari.TryGetValue(kv.Key, out var s)
+                        ? s : (GenelSensorAdi(kv.Key), "");
+                    string deger = kv.Value.ToString("0.##");
+                    return new SensorRow(ad, birim.Length > 0 ? $"{deger} {birim}" : deger);
+                })
+                .ToList();
+            SensorHeader.Visibility = Visibility.Visible;
+            SensorList.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            SensorHeader.Visibility = Visibility.Collapsed;
+            SensorList.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    // "s_12_..." -> 12 (dosyadaki sensor sirasi korunur).
+    private static int SensorSira(string key)
+    {
+        var parts = key.Split('_');
+        return parts.Length > 1 && int.TryParse(parts[1], out int n) ? n : 99;
+    }
+
+    // Bilinmeyen anahtar icin okunur ad: "s_22_foo_bar" -> "foo bar".
+    private static string GenelSensorAdi(string key)
+    {
+        var parts = key.Split('_');
+        return string.Join(' ', parts.Skip(parts.Length > 1 && int.TryParse(parts[1], out _) ? 2 : 1));
     }
 
     private static void Push(List<double> buf, double v)

@@ -48,6 +48,7 @@
                     HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="330"
                     Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource StrokeBrush}"
                     BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="18,16">
                     <Grid>
                         <StackPanel>
@@ -100,7 +101,24 @@
                         <TextBlock x:Name="DpVal" HorizontalAlignment="Right" FontSize="12" Foreground="#4ECDC4"/>
                     </Grid>
                     <c:MiniChart x:Name="DpChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#4ECDC4"/>
+
+                    <!-- Tum sensorler (yalnizca snapshot kaynaginda; en kotu unite) -->
+                    <TextBlock x:Name="SensorHeader" Visibility="Collapsed" Margin="0,18,0,6"
+                               FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedBrush}"/>
+                    <ItemsControl x:Name="SensorList" Visibility="Collapsed">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,1.5">
+                                    <TextBlock Text="{Binding Name}" FontSize="11"
+                                               Foreground="{StaticResource MutedBrush}"/>
+                                    <TextBlock Text="{Binding Value}" FontSize="11" HorizontalAlignment="Right"
+                                               Foreground="{StaticResource TextBrush}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 

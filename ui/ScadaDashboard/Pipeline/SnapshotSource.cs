@@ -33,21 +33,28 @@ public sealed class SnapshotSource : IPipelineSource
     private static double VibHealth(double vib) =>
         Math.Clamp((VibDead - vib) / (VibDead - VibHealthy) * 100.0, 0, 100);
 
-    // İstasyonun en kötü (en yüksek titreşimli) ünitesinin telemetrisi.
-    private IReadOnlyDictionary<string, double>? WorstUnit(string stationId)
+    // İstasyonun en kötü (en yüksek titreşimli) ünitesi + telemetrisi.
+    private (string Id, IReadOnlyDictionary<string, double> Sensors)? WorstUnitWithId(string stationId)
     {
         if (!_data.StationUnits.TryGetValue(stationId, out var units)) return null;
-        IReadOnlyDictionary<string, double>? worst = null;
+        (string, IReadOnlyDictionary<string, double>)? worst = null;
         double worstVib = -1;
         foreach (var u in units)
         {
             var t = Telem(u.Id);
             if (t == null) continue;
             double vib = t.GetValueOrDefault("s_7_vibration_de_mm_s");
-            if (vib > worstVib) { worstVib = vib; worst = t; }
+            if (vib > worstVib) { worstVib = vib; worst = (u.Id, t); }
         }
         return worst;
     }
+
+    private IReadOnlyDictionary<string, double>? WorstUnit(string stationId) =>
+        WorstUnitWithId(stationId)?.Sensors;
+
+    /// <summary>En kötü ünitenin tüm sensörleri (detay paneli, 21 sensör).</summary>
+    public (string UnitId, IReadOnlyDictionary<string, double> Sensors)? WorstUnitSensors(string stationId) =>
+        WorstUnitWithId(stationId);
 
     public NodeSnap Node(string id)
     {

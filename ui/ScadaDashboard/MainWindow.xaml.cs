@@ -27,8 +27,16 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Title = title;
-        DataContext = new MainViewModel(source, new AlertService());
+        DataContext = new MainViewModel(source, new AlertService(), SourceLabelFor(source));
     }
+
+    // Ust bardaki veri kaynagi etiketi (kaynak turune gore).
+    private static string SourceLabelFor(IDataSource source) => source switch
+    {
+        Pipeline.SnapshotStationSource => "SNAPSHOT",
+        Pipeline.StationDataSource => "SİMÜLASYON",
+        _ => source.GetType().Name,
+    };
 
     // Alt uyari panelini kucult / geri ac.
     private void ToggleAlerts_Click(object sender, RoutedEventArgs e)

@@ -3,6 +3,9 @@ using System.Text.Json;
 
 namespace ScadaDashboard.Pipeline;
 
+/// <summary>Snapshot'taki bir ekipman ünitesi (istasyon drill-in kartları için).</summary>
+public sealed record SnapshotUnit(string Id, string Model, string UnitType);
+
 /// <summary>Snapshot dosyasından okunan tam ağ + telemetri (statik anlık görüntü).</summary>
 public sealed class SnapshotData
 {
@@ -12,8 +15,8 @@ public sealed class SnapshotData
     /// <summary>Normalize anahtar (küçük harf, '-'→'_') → sayısal sensör değerleri.</summary>
     public required IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Telemetry { get; init; }
 
-    /// <summary>İstasyon düğüm id → o istasyondaki ünite id listesi.</summary>
-    public required IReadOnlyDictionary<string, IReadOnlyList<string>> StationUnits { get; init; }
+    /// <summary>İstasyon düğüm id → o istasyondaki üniteler.</summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<SnapshotUnit>> StationUnits { get; init; }
 }
 
 /// <summary>
@@ -36,7 +39,7 @@ public static class SnapshotLoader
         var segments = new List<PSegment>();
         var segSeen = new HashSet<string>();
         var telemetry = new Dictionary<string, IReadOnlyDictionary<string, double>>();
-        var stationUnits = new Dictionary<string, List<string>>();
+        var stationUnits = new Dictionary<string, List<SnapshotUnit>>();
 
         foreach (var region in doc.RootElement.EnumerateObject())
         {
@@ -94,8 +97,12 @@ public static class SnapshotLoader
                     string station = eq.GetProperty("station_node_id").GetString() ?? "";
                     if (unitId.Length == 0 || station.Length == 0) continue;
                     if (!stationUnits.TryGetValue(station, out var list))
-                        stationUnits[station] = list = new List<string>();
-                    if (!list.Contains(unitId)) list.Add(unitId);
+                        stationUnits[station] = list = new List<SnapshotUnit>();
+                    if (list.All(u => u.Id != unitId))
+                        list.Add(new SnapshotUnit(
+                            unitId,
+                            eq.TryGetProperty("model", out var mo) ? mo.GetString() ?? "" : "",
+                            eq.TryGetProperty("unit_type", out var ut) ? ut.GetString() ?? "" : ""));
                 }
             }
 
@@ -134,7 +141,7 @@ public static class SnapshotLoader
             Segments = segments,
             Telemetry = telemetry,
             StationUnits = stationUnits.ToDictionary(
-                kv => kv.Key, kv => (IReadOnlyList<string>)kv.Value),
+                kv => kv.Key, kv => (IReadOnlyList<SnapshotUnit>)kv.Value),
         };
     }
 }

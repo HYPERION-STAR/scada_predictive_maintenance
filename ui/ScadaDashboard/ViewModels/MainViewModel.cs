@@ -19,10 +19,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<MachineViewModel> Machines { get; } = new();
     public ObservableCollection<AlertItem> Alerts { get; } = new();
 
-    public MainViewModel(IDataSource dataSource, AlertService alerts)
+    public MainViewModel(IDataSource dataSource, AlertService alerts, string sourceLabel = "SİMÜLASYON")
     {
         _dataSource = dataSource;
         _alerts = alerts;
+        SourceLabel = sourceLabel;
 
         foreach (var desc in _dataSource.Machines)
         {
@@ -34,7 +35,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         RecalculateSummary();
 
-        AddAlert("Bilgi", "SYS", "Dashboard başlatıldı. Veri kaynağı: SİMÜLASYON.");
+        AddAlert("Bilgi", "SYS", $"Dashboard başlatıldı. Veri kaynağı: {sourceLabel}.");
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
@@ -107,6 +108,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private string _clock = DateTime.Now.ToString("dd.MM.yyyy  HH:mm:ss");
     public string Clock { get => _clock; private set => Set(ref _clock, value); }
+
+    /// <summary>Üst barda gösterilen veri kaynağı adı (SİMÜLASYON / SNAPSHOT ...).</summary>
+    public string SourceLabel { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

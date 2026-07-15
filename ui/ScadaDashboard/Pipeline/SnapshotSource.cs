@@ -1,3 +1,5 @@
+using ScadaDashboard.Models;
+
 namespace ScadaDashboard.Pipeline;
 
 /// <summary>
@@ -27,15 +29,19 @@ public sealed class SnapshotSource : IPipelineSource
     private IReadOnlyDictionary<string, double>? Telem(string id) =>
         _data.Telemetry.TryGetValue(SnapshotLoader.Norm(id), out var t) ? t : null;
 
+    // Titreşimden proxy sağlık (2 mm/s → %100, 9 mm/s → %0).
+    private static double VibHealth(double vib) =>
+        Math.Clamp((VibDead - vib) / (VibDead - VibHealthy) * 100.0, 0, 100);
+
     // İstasyonun en kötü (en yüksek titreşimli) ünitesinin telemetrisi.
     private IReadOnlyDictionary<string, double>? WorstUnit(string stationId)
     {
         if (!_data.StationUnits.TryGetValue(stationId, out var units)) return null;
         IReadOnlyDictionary<string, double>? worst = null;
         double worstVib = -1;
-        foreach (var uid in units)
+        foreach (var u in units)
         {
-            var t = Telem(uid);
+            var t = Telem(u.Id);
             if (t == null) continue;
             double vib = t.GetValueOrDefault("s_7_vibration_de_mm_s");
             if (vib > worstVib) { worstVib = vib; worst = t; }
@@ -48,10 +54,37 @@ public sealed class SnapshotSource : IPipelineSource
         var w = WorstUnit(id);
         if (w == null) return new NodeSnap(100, MaxRul, false); // sınır/çıkış/kavşak/depo
 
-        double vib = w.GetValueOrDefault("s_7_vibration_de_mm_s");
-        double health = Math.Clamp((VibDead - vib) / (VibDead - VibHealthy) * 100.0, 0, 100);
+        double health = VibHealth(w.GetValueOrDefault("s_7_vibration_de_mm_s"));
         // RUL proxy: DB predictions gelene kadar sağlıkla orantılı gösterim.
         return new NodeSnap(Math.Round(health, 1), Math.Round(health / 100.0 * MaxRul, 0), true);
+    }
+
+    // --- İstasyon üniteleri (haritadan açılan makine kartları için) ---------
+
+    /// <summary>İstasyonun ünite listesi (drill-in kartları).</summary>
+    public IReadOnlyList<SnapshotUnit> UnitList(string stationId) =>
+        _data.StationUnits.TryGetValue(stationId, out var units)
+            ? units : Array.Empty<SnapshotUnit>();
+
+    /// <summary>Tek ünitenin makine kartı görünümü (proxy sağlık, statik).</summary>
+    public MachineSnapshot UnitSnapshot(string unitId)
+    {
+        var t = Telem(unitId);
+        if (t == null) return default;
+        double vib = t.GetValueOrDefault("s_7_vibration_de_mm_s");
+        double health = VibHealth(vib);
+        double rul = health / 100.0 * MaxRul;
+        // Anomali olasılığı: simülatörle aynı lojistik eğri (RUL 30 civarı eşik).
+        double anomalyProb = 1.0 / (1.0 + Math.Exp((rul - 30.0) / 6.0));
+        return new MachineSnapshot(
+            Temperature: Math.Round(t.GetValueOrDefault("s_10_bearing_temp_1_c"), 1),
+            Pressure: Math.Round(t.GetValueOrDefault("s_2_discharge_pressure_bar"), 2),
+            Vibration: Math.Round(vib, 2),
+            Rul: Math.Round(rul, 1),
+            HealthScore: Math.Round(health, 1),
+            Anomaly: health < 20,
+            IsDegraded: health < 40,
+            AnomalyProbability: Math.Round(anomalyProb, 3));
     }
 
     public SegSnap Segment(string id)

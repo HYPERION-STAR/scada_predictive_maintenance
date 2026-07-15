@@ -37,8 +37,9 @@ public partial class MapWindow : Window
             _source = new PipelineSimulator();
         }
 
-        // Uniteler yalnizca simulasyon kaynagi ile (Hub'da uniteler ileride).
-        UnitsButton.Visibility = _source is PipelineSimulator ? Visibility.Visible : Visibility.Collapsed;
+        // Uniteler simulasyon ve snapshot kaynaklarinda var (Hub'da ileride).
+        UnitsButton.Visibility = _source is PipelineSimulator or SnapshotSource
+            ? Visibility.Visible : Visibility.Collapsed;
 
         Map.Source = _source;
         Map.NodeClicked += OnNodeClicked;
@@ -140,12 +141,18 @@ public partial class MapWindow : Window
         Detail.Visibility = Visibility.Collapsed;
     }
 
-    // Secili istasyonun unitelerini makine karti panelinde ac (ortak sim).
+    // Secili istasyonun unitelerini makine karti panelinde ac.
     private void OpenUnits_Click(object sender, RoutedEventArgs e)
     {
-        if (_selected != null && _source is PipelineSimulator sim)
-            new MainWindow(new StationDataSource(sim, _selected), $"{DetailName.Text} - Üniteler")
-                { Owner = this }.Show();
+        if (_selected == null) return;
+        Services.IDataSource? units = _source switch
+        {
+            PipelineSimulator sim => new StationDataSource(sim, _selected),
+            SnapshotSource snap => new SnapshotStationSource(snap, _selected),
+            _ => null,
+        };
+        if (units != null)
+            new MainWindow(units, $"{DetailName.Text} - Üniteler") { Owner = this }.Show();
     }
 
     private void UpdateDetail()

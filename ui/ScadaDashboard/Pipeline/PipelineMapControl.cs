@@ -31,6 +31,8 @@ public sealed class PipelineMapControl : Control
     public event Action<PNode>? NodeClicked;
 
     private readonly Dictionary<string, Point> _screen = new();
+    // Segment ekran noktalari (polyline guzergah; hover mesafesi icin cache).
+    private readonly Dictionary<string, Point[]> _segScreen = new();
 
     private string? _hoverId;   // uzerine gelinen dugum/segment
     private bool _hoverSeg;
@@ -159,37 +161,56 @@ public sealed class PipelineMapControl : Control
         var highCol = Color.FromRgb(0xFF, 0x6B, 0x6B);
 
         // --- Segmentler ---
+        _segScreen.Clear();
         foreach (var seg in PipelineTopology.Segments)
         {
-            var p1 = _screen[seg.From];
-            var p2 = _screen[seg.To];
+            // Ucu bilinmeyen segmenti atla (bozuk snapshot verisine karsi).
+            if (!_screen.TryGetValue(seg.From, out var pFrom)
+                || !_screen.TryGetValue(seg.To, out var pTo)) continue;
+
+            // Guzergah: Geometry doluysa gercek polyline, yoksa duz cizgi.
+            Point[] pts;
+            if (seg.Geometry is { Count: >= 2 } geo)
+            {
+                pts = new Point[geo.Count];
+                for (int i = 0; i < geo.Count; i++)
+                    pts[i] = project(geo[i].Lat, geo[i].Lon);
+            }
+            else pts = new[] { pFrom, pTo };
+            _segScreen[seg.Id] = pts;
+
             var snap = _source.Segment(seg.Id);
             var col = Lerp(lowCol, highCol, snap.LoadRatio);
             double thick = 2.5 + snap.LoadRatio * 4.0;
 
-            dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(90, col.R, col.G, col.B)), thick + 3), p1, p2);
-            dc.DrawLine(new Pen(new SolidColorBrush(col), thick), p1, p2);
+            var glowPen = new Pen(new SolidColorBrush(Color.FromArgb(90, col.R, col.G, col.B)), thick + 3);
+            var mainPen = new Pen(new SolidColorBrush(col), thick);
+            for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(glowPen, pts[i], pts[i + 1]);
+            for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(mainPen, pts[i], pts[i + 1]);
 
             // Sizinti: yanip sonen kirmizi kalin katman.
             if (snap.Leak)
             {
                 double lp = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 200.0);
                 byte la = (byte)(60 + lp * 190);
-                dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(la, 0xE7, 0x4C, 0x3C)), thick + 7), p1, p2);
+                var leakPen = new Pen(new SolidColorBrush(Color.FromArgb(la, 0xE7, 0x4C, 0x3C)), thick + 7);
+                for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(leakPen, pts[i], pts[i + 1]);
             }
+
+            // Toplam guzergah uzunlugu (akis noktalari + etiket konumu icin).
+            double segLen = 0;
+            for (int i = 0; i + 1 < pts.Length; i++) segLen += (pts[i + 1] - pts[i]).Length;
 
             var dotBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xEE, 0xF6));
             const int dots = 4;
             for (int i = 0; i < dots; i++)
             {
                 double t = (phase + (double)i / dots) % 1.0;
-                var p = new Point(p1.X + (p2.X - p1.X) * t, p1.Y + (p2.Y - p1.Y) * t);
-                dc.DrawEllipse(dotBrush, null, p, 2.0, 2.0);
+                dc.DrawEllipse(dotBrush, null, PointAlong(pts, segLen * t), 2.0, 2.0);
             }
 
-            var mid = new Point((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
-            var seg2 = p2 - p1; double segLen = seg2.Length;
-            var dir = seg2; if (segLen > 0) dir.Normalize();
+            // Etiket: guzergahin orta noktasi, yerel yone dik yukari kaydirilir.
+            var mid = PointAlong(pts, segLen / 2, out var dir);
             var perp = new Vector(-dir.Y, dir.X); if (perp.Y > 0) perp.Negate(); // etiket yukari tarafa
             var lc = new Point(mid.X + perp.X * 16, mid.Y + perp.Y * 16);
             if (segLen > 150) // kisa segmentte etiket dugum yazilariyla cakisir, atla
@@ -211,6 +232,9 @@ public sealed class PipelineMapControl : Control
         }
 
         // --- Düğümler ---
+        // Yogun agda (snapshot: ~90 dugum) her dugume etiket sigmaz; yalnizca
+        // istasyon etiketleri cizilir, digerleri tooltip ile okunur.
+        bool dense = nodes.Count > 30;
         foreach (var n in nodes)
         {
             var p = _screen[n.Id];
@@ -244,13 +268,16 @@ public sealed class PipelineMapControl : Control
                     new Rect(tank.X, tank.Bottom - fh, tank.Width, fh));
             }
 
-            var name = Text(n.Name, 11.5, TextCol, dpi);
-            DrawLabel(dc, name, new Point(p.X - name.Width / 2, p.Y + r + 4));
-            string sub = n.IsStation ? $"%{snap.Health:0}  •  RUL {snap.Rul:0}"
-                       : n.Type == "STORAGE" ? $"DEPO  %{_source.Level(n.Id):0}"
-                       : n.Type;
-            var subFt = Text(sub, 10, MutedCol, dpi);
-            DrawLabel(dc, subFt, new Point(p.X - subFt.Width / 2, p.Y + r + 20));
+            if (!dense || n.IsStation)
+            {
+                var name = Text(n.Name, 11.5, TextCol, dpi);
+                DrawLabel(dc, name, new Point(p.X - name.Width / 2, p.Y + r + 4));
+                string sub = n.IsStation ? $"%{snap.Health:0}  •  RUL {snap.Rul:0}"
+                           : n.Type == "STORAGE" ? $"DEPO  %{_source.Level(n.Id):0}"
+                           : n.Type;
+                var subFt = Text(sub, 10, MutedCol, dpi);
+                DrawLabel(dc, subFt, new Point(p.X - subFt.Width / 2, p.Y + r + 20));
+            }
         }
 
         DrawTooltip(dc, dpi);
@@ -322,8 +349,7 @@ public sealed class PipelineMapControl : Control
             if (_screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
             { _hoverId = n.Id; _hoverSeg = false; return; }
         foreach (var s in PipelineTopology.Segments)
-            if (_screen.TryGetValue(s.From, out var a) && _screen.TryGetValue(s.To, out var b)
-                && DistToSeg(_mouse, a, b) <= 7)
+            if (_segScreen.TryGetValue(s.Id, out var pts) && DistToPolyline(_mouse, pts) <= 7)
             { _hoverId = s.Id; _hoverSeg = true; return; }
     }
 
@@ -348,6 +374,37 @@ public sealed class PipelineMapControl : Control
         InvalidateVisual();
     }
 
+    /// <summary>Polyline uzerinde bastan itibaren verilen mesafedeki nokta.</summary>
+    private static Point PointAlong(Point[] pts, double dist) => PointAlong(pts, dist, out _);
+
+    private static Point PointAlong(Point[] pts, double dist, out Vector dir)
+    {
+        dir = new Vector(1, 0);
+        for (int i = 0; i + 1 < pts.Length; i++)
+        {
+            var d = pts[i + 1] - pts[i];
+            double len = d.Length;
+            if (len < 1e-9) continue;
+            if (dist <= len || i + 2 == pts.Length)
+            {
+                dir = d / len;
+                double t = Math.Clamp(dist / len, 0, 1);
+                return pts[i] + d * t;
+            }
+            dist -= len;
+        }
+        return pts[^1];
+    }
+
+    /// <summary>Noktanin polyline'a en kisa mesafesi (hover icin).</summary>
+    private static double DistToPolyline(Point p, Point[] pts)
+    {
+        double best = double.MaxValue;
+        for (int i = 0; i + 1 < pts.Length; i++)
+            best = Math.Min(best, DistToSeg(p, pts[i], pts[i + 1]));
+        return best;
+    }
+
     private static double DistToSeg(Point p, Point a, Point b)
     {
         var ab = b - a; double len2 = ab.LengthSquared;
@@ -364,7 +421,7 @@ public sealed class PipelineMapControl : Control
         {
             var s = PipelineTopology.Segments.First(x => x.Id == _hoverId);
             var snap = _source.Segment(s.Id);
-            text = $"{s.Id}   {s.From} → {s.To}\nAkis: {snap.FlowMcmDay:0} mcm/gun"
+            text = $"{s.Id}   {s.From} → {s.To}\nAkış: {snap.FlowMcmDay:0} mcm/gün"
                  + (snap.Leak ? "\n⚠ SIZINTI" : "");
         }
         else
@@ -373,8 +430,8 @@ public sealed class PipelineMapControl : Control
             if (n.IsStation)
             {
                 var snap = _source.Node(n.Id);
-                string durum = snap.Health >= 70 ? "SAGLIKLI" : snap.Health >= 40 ? "UYARI"
-                             : snap.Health >= 20 ? "RISKLI" : "KRITIK";
+                string durum = snap.Health >= 70 ? "SAĞLIKLI" : snap.Health >= 40 ? "UYARI"
+                             : snap.Health >= 20 ? "RİSKLİ" : "KRİTİK";
                 text = $"{n.Id}  {n.Name}\n{durum}   %{snap.Health:0}   RUL {snap.Rul:0}";
             }
             else if (n.Type == "STORAGE")

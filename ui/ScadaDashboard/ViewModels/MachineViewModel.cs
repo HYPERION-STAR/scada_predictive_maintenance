@@ -111,13 +111,13 @@ public sealed class MachineViewModel : INotifyPropertyChanged
         switch (level)
         {
             case 3:
-                StatusText = "KRITIK"; StatusBrush = MakeBrush(0xE7, 0x4C, 0x3C); IsAlarm = true; break;
+                StatusText = "KRİTİK"; StatusBrush = MakeBrush(0xE7, 0x4C, 0x3C); IsAlarm = true; break;
             case 2:
-                StatusText = "RISKLI"; StatusBrush = MakeBrush(0xE6, 0x7E, 0x22); IsAlarm = false; break;
+                StatusText = "RİSKLİ"; StatusBrush = MakeBrush(0xE6, 0x7E, 0x22); IsAlarm = false; break;
             case 1:
                 StatusText = "UYARI"; StatusBrush = MakeBrush(0xF1, 0xC4, 0x0F); IsAlarm = false; break;
             default:
-                StatusText = "SAGLIKLI"; StatusBrush = MakeBrush(0x2E, 0xCC, 0x71); IsAlarm = false; break;
+                StatusText = "SAĞLIKLI"; StatusBrush = MakeBrush(0x2E, 0xCC, 0x71); IsAlarm = false; break;
         }
     }
 

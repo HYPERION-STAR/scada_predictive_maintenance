@@ -34,7 +34,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         RecalculateSummary();
 
-        AddAlert("Bilgi", "SYS", "Dashboard baslatildi. Veri kaynagi: SIMULASYON.");
+        AddAlert("Bilgi", "SYS", "Dashboard başlatıldı. Veri kaynağı: SİMÜLASYON.");
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
@@ -52,7 +52,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnAlarmRaised(MachineViewModel vm)
     {
-        var msg = $"Saglik %{vm.HealthScore:0}, kalan omur {vm.Rul:0} dongu. Bakim gerekli!";
+        var msg = $"Sağlık %{vm.HealthScore:0}, kalan ömür {vm.Rul:0} döngü. Bakım gerekli!";
         AddAlert("Kritik", vm.Id, msg);
         _alerts.SendAlert(vm.Id, vm.Name, msg);   // E-posta/SMS simulasyonu (logs/alerts.log)
     }
@@ -62,7 +62,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _dataSource.Maintain(vm.Id);
         vm.Update(_dataSource.GetSnapshot(vm.Id));
         RecalculateSummary();
-        AddAlert("Bilgi", vm.Id, "Bakim yapildi, makine saglikli duruma dondu.");
+        AddAlert("Bilgi", vm.Id, "Bakım yapıldı, makine sağlıklı duruma döndü.");
     }
 
     private void AddAlert(string severity, string machineId, string message)
@@ -83,8 +83,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         int total = Machines.Count, critical = 0, healthy = 0;
         foreach (var m in Machines)
         {
-            if (m.StatusText == "KRITIK") critical++;
-            else if (m.StatusText == "SAGLIKLI") healthy++;
+            if (m.StatusText == "KRİTİK") critical++;
+            else if (m.StatusText == "SAĞLIKLI") healthy++;
         }
         TotalCount = total;
         CriticalCount = critical;

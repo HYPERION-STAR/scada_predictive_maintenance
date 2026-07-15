@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:pm="clr-namespace:ScadaDashboard.Pipeline"
         xmlns:c="clr-namespace:ScadaDashboard.Controls"
-        Title="Boru Hatti Agi - Canli Harita"
+        Title="Boru Hattı Ağı - Canlı Harita"
         Height="820" Width="1280" MinHeight="560" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI"
@@ -21,11 +21,11 @@
                 BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,0,0,1">
             <Grid>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="BORU HATTI AGI - CANLI HARITA" FontSize="19" FontWeight="Bold"
+                    <TextBlock Text="BORU HATTI AĞI - CANLI HARİTA" FontSize="19" FontWeight="Bold"
                                Foreground="{StaticResource TextBrush}"/>
                     <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
-                        <Run Text="Ag sagligi ve akis izleme"/>
-                        <Run x:Name="SourceLabel" Text="  •  Veri kaynagi: SIMULASYON" Foreground="#F1C40F"/>
+                        <Run Text="Ağ sağlığı ve akış izleme"/>
+                        <Run x:Name="SourceLabel" Text="  •  Veri kaynağı: SİMÜLASYON" Foreground="#F1C40F"/>
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -69,34 +69,34 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="KALAN OMUR (RUL)" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="KALAN ÖMÜR (RUL)" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
                             <TextBlock x:Name="DetailRul" FontSize="15" Foreground="{StaticResource TextBrush}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="SAGLIK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="SAĞLIK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
                             <TextBlock x:Name="DetailHealth" FontSize="15" Foreground="{StaticResource TextBrush}"/>
                         </StackPanel>
                     </Grid>
 
-                    <Button x:Name="UnitsButton" Content="Uniteleri Ac" Click="OpenUnits_Click"
+                    <Button x:Name="UnitsButton" Content="Üniteleri Aç" Click="OpenUnits_Click"
                             AutomationProperties.AutomationId="UnitsButton"
                             Style="{StaticResource GhostButton}" Margin="0,12,0,0" Padding="10,6"
                             HorizontalAlignment="Left"/>
 
                     <Grid Margin="0,16,0,2">
-                        <TextBlock Text="Titresim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                        <TextBlock Text="Titreşim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                         <TextBlock x:Name="VibVal" HorizontalAlignment="Right" FontSize="12" Foreground="#FFD166"/>
                     </Grid>
                     <c:MiniChart x:Name="VibChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#FFD166"/>
 
                     <Grid Margin="0,10,0,2">
-                        <TextBlock Text="Yatak Sicakligi" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                        <TextBlock Text="Yatak Sıcaklığı" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                         <TextBlock x:Name="BtVal" HorizontalAlignment="Right" FontSize="12" Foreground="#FF6B6B"/>
                     </Grid>
                     <c:MiniChart x:Name="BtChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#FF6B6B"/>
 
                     <Grid Margin="0,10,0,2">
-                        <TextBlock Text="Basma Basinci" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                        <TextBlock Text="Basma Basıncı" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                         <TextBlock x:Name="DpVal" HorizontalAlignment="Right" FontSize="12" Foreground="#4ECDC4"/>
                     </Grid>
                     <c:MiniChart x:Name="DpChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#4ECDC4"/>
@@ -109,34 +109,34 @@
                 BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Istasyon:" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                    <TextBlock Text="İstasyon:" FontSize="11" Foreground="{StaticResource MutedBrush}"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <Ellipse Width="10" Height="10" Fill="#2ECC71" Margin="0,0,4,0"/>
-                    <TextBlock Text="Saglikli" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Sağlıklı" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#F1C40F" Margin="0,0,4,0"/>
-                    <TextBlock Text="Uyari" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Uyarı" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#E67E22" Margin="0,0,4,0"/>
                     <TextBlock Text="Riskli" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#E74C3C" Margin="0,0,4,0"/>
                     <TextBlock Text="Kritik" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,20,0" VerticalAlignment="Center"/>
 
-                    <TextBlock Text="Dugum:" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                    <TextBlock Text="Düğüm:" FontSize="11" Foreground="{StaticResource MutedBrush}"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <Ellipse Width="10" Height="10" Fill="#4E9BF5" Margin="0,0,4,0"/>
-                    <TextBlock Text="Sinir" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Sınır" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#C58AF5" Margin="0,0,4,0"/>
-                    <TextBlock Text="Cikis" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Çıkış" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#4ECDC4" Margin="0,0,4,0"/>
                     <TextBlock Text="Depo" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,20,0" VerticalAlignment="Center"/>
 
-                    <TextBlock Text="Akis: dusuk" FontSize="11" Foreground="#4ECDC4" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock Text="Akış: düşük" FontSize="11" Foreground="#4ECDC4" VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <TextBlock Text="—&gt;" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Text="yuksek" FontSize="11" Foreground="#FF6B6B" VerticalAlignment="Center"/>
+                    <TextBlock Text="yüksek" FontSize="11" Foreground="#FF6B6B" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <TextBlock x:Name="SelectedInfo" HorizontalAlignment="Right" VerticalAlignment="Center"
                            FontSize="12" Foreground="{StaticResource MutedBrush}"
-                           Text="Bir istasyona tiklayin"/>
+                           Text="Bir istasyona tıklayın"/>
             </Grid>
         </Border>
     </Grid>

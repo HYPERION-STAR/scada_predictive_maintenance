@@ -18,11 +18,24 @@ public partial class MapWindow : Window
     {
         InitializeComponent();
 
-        // Veri kaynagi: SCADA_HUB_URL ayarli ise API Hub (HTTP), yoksa simulasyon.
-        // Boylece Kisi 2'nin Hub'i olmadan da UI bagimsiz calisir.
+        // Veri kaynagi onceligi: SCADA_HUB_URL (API Hub) > snapshot dosyasi >
+        // simulasyon. Boylece backend olmadan da UI bagimsiz calisir.
         var hub = Environment.GetEnvironmentVariable("SCADA_HUB_URL");
-        _source = string.IsNullOrWhiteSpace(hub) ? new PipelineSimulator() : new HttpPipelineSource(hub);
-        if (!string.IsNullOrWhiteSpace(hub)) SourceLabel.Text = "  •  Veri kaynagi: API HUB";
+        string? snapshotPath = string.IsNullOrWhiteSpace(hub) ? FindSnapshotFile() : null;
+        if (!string.IsNullOrWhiteSpace(hub))
+        {
+            _source = new HttpPipelineSource(hub);
+            SourceLabel.Text = "  •  Veri kaynağı: API HUB";
+        }
+        else if (snapshotPath != null && TryLoadSnapshot(snapshotPath, out var snapSource))
+        {
+            _source = snapSource;
+            SourceLabel.Text = "  •  Veri kaynağı: SNAPSHOT";
+        }
+        else
+        {
+            _source = new PipelineSimulator();
+        }
 
         // Uniteler yalnizca simulasyon kaynagi ile (Hub'da uniteler ileride).
         UnitsButton.Visibility = _source is PipelineSimulator ? Visibility.Visible : Visibility.Collapsed;
@@ -50,6 +63,42 @@ public partial class MapWindow : Window
         _render.Start();
     }
 
+    // Tam ag snapshot dosyasini bul: SCADA_SNAPSHOT env yolu, yoksa exe
+    // klasorunden yukari dogru "*live_snapshot.json" aranir (dosya repo
+    // kokunde, git disi tutulur).
+    private static string? FindSnapshotFile()
+    {
+        var env = Environment.GetEnvironmentVariable("SCADA_SNAPSHOT");
+        if (!string.IsNullOrWhiteSpace(env) && System.IO.File.Exists(env)) return env;
+
+        var dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+        {
+            var hits = dir.GetFiles("*live_snapshot.json");
+            if (hits.Length > 0) return hits[0].FullName;
+        }
+        return null;
+    }
+
+    // Snapshot'i yukle; topolojiyi tam agla degistir. Bozuk dosyada sessizce
+    // simulasyona dusulur (harita her kosulda calisir).
+    private static bool TryLoadSnapshot(string path, out SnapshotSource source)
+    {
+        try
+        {
+            var data = SnapshotLoader.Load(path);
+            if (data.Nodes.Count == 0) { source = null!; return false; }
+            PipelineTopology.Load(data.Nodes, data.Segments);
+            source = new SnapshotSource(data);
+            return true;
+        }
+        catch
+        {
+            source = null!;
+            return false;
+        }
+    }
+
     // Genel makine panelini ac (5 jenerik makine).
     private void OpenDashboard_Click(object sender, RoutedEventArgs e) => new MainWindow().Show();
 
@@ -61,7 +110,7 @@ public partial class MapWindow : Window
             if (n.IsStation && _source.Node(n.Id).Health < 20) crit++;
         if (crit > 0)
         {
-            AlarmText.Text = $"⚠  {crit} KRITIK ISTASYON";
+            AlarmText.Text = $"⚠  {crit} KRİTİK İSTASYON";
             AlarmBox.Visibility = Visibility.Visible;
         }
         else AlarmBox.Visibility = Visibility.Collapsed;
@@ -81,7 +130,7 @@ public partial class MapWindow : Window
         }
         else
         {
-            SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme disi)";
+            SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme dışı)";
         }
     }
 
@@ -95,7 +144,7 @@ public partial class MapWindow : Window
     private void OpenUnits_Click(object sender, RoutedEventArgs e)
     {
         if (_selected != null && _source is PipelineSimulator sim)
-            new MainWindow(new StationDataSource(sim, _selected), $"{DetailName.Text} - Uniteler")
+            new MainWindow(new StationDataSource(sim, _selected), $"{DetailName.Text} - Üniteler")
                 { Owner = this }.Show();
     }
 
@@ -109,10 +158,10 @@ public partial class MapWindow : Window
         VibVal.Text = $"{s.Vibration:0.00} mm/s";
         BtVal.Text = $"{s.BearingTemp:0.0} °C";
         DpVal.Text = $"{s.DischargePressure:0.00} bar";
-        DetailRul.Text = $"{snap.Rul:0} dongu";
+        DetailRul.Text = $"{snap.Rul:0} döngü";
         DetailHealth.Text = $"%{snap.Health:0}";
-        string durum = snap.Health >= 70 ? "SAGLIKLI" : snap.Health >= 40 ? "UYARI"
-                     : snap.Health >= 20 ? "RISKLI" : "KRITIK";
+        string durum = snap.Health >= 70 ? "SAĞLIKLI" : snap.Health >= 40 ? "UYARI"
+                     : snap.Health >= 20 ? "RİSKLİ" : "KRİTİK";
         DetailStatus.Text = durum;
         DetailStatusBox.Background = new SolidColorBrush(
             snap.Health >= 70 ? Color.FromRgb(0x2E, 0xCC, 0x71)

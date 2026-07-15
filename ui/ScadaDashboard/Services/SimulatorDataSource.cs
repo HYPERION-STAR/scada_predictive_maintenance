@@ -40,10 +40,10 @@ public sealed class SimulatorDataSource : IDataSource
         _sims = new List<Sim>
         {
             new() { Desc = new("MTR-01", "Ana Tahrik Motoru", "Motor"),      Rul = 128, DegradePerTick = 0.18, BaseTemp = 58, BasePressure = 6.2, BaseVibration = 1.1 },
-            new() { Desc = new("PMP-02", "Sogutma Pompasi",    "Pompa"),      Rul = 96,  DegradePerTick = 0.22, BaseTemp = 46, BasePressure = 8.0, BaseVibration = 0.9 },
-            new() { Desc = new("CNV-03", "Konveyor Hatti",     "Konveyor"),   Rul = 57,  DegradePerTick = 0.28, BaseTemp = 40, BasePressure = 4.5, BaseVibration = 1.4 },
-            new() { Desc = new("FAN-04", "Egzoz Fani",         "Fan"),        Rul = 33,  DegradePerTick = 0.20, BaseTemp = 52, BasePressure = 3.2, BaseVibration = 1.7 },
-            new() { Desc = new("CMP-05", "Hava Kompresoru",    "Kompresor"),  Rul = 21,  DegradePerTick = 0.16, BaseTemp = 63, BasePressure = 9.5, BaseVibration = 2.0 },
+            new() { Desc = new("PMP-02", "Soğutma Pompası",    "Pompa"),      Rul = 96,  DegradePerTick = 0.22, BaseTemp = 46, BasePressure = 8.0, BaseVibration = 0.9 },
+            new() { Desc = new("CNV-03", "Konveyör Hattı",     "Konveyör"),   Rul = 57,  DegradePerTick = 0.28, BaseTemp = 40, BasePressure = 4.5, BaseVibration = 1.4 },
+            new() { Desc = new("FAN-04", "Egzoz Fanı",         "Fan"),        Rul = 33,  DegradePerTick = 0.20, BaseTemp = 52, BasePressure = 3.2, BaseVibration = 1.7 },
+            new() { Desc = new("CMP-05", "Hava Kompresörü",    "Kompresör"),  Rul = 21,  DegradePerTick = 0.16, BaseTemp = 63, BasePressure = 9.5, BaseVibration = 2.0 },
         };
         _byId = _sims.ToDictionary(s => s.Desc.Id);
 

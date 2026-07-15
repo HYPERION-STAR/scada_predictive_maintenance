@@ -15,7 +15,7 @@ public sealed class SeverityToBrushConverter : IValueConverter
         => (value as string) switch
         {
             "Kritik" => Critical,
-            "Uyari" => Warning,
+            "Uyarı" => Warning,
             _ => Info,
         };
 

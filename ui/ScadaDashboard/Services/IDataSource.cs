@@ -21,4 +21,10 @@ public interface IDataSource
 
     /// <summary>Bakim yap: makineyi sifirdan saglikli duruma dondurur (demo/etkilesim).</summary>
     void Maintain(string machineId);
+
+    /// <summary>
+    /// Bu kaynak bakim uygulayabilir mi? Statik kaynaklarda (ör. snapshot)
+    /// false — UI "Bakim Yap" butonunu gizler.
+    /// </summary>
+    bool CanMaintain => true;
 }

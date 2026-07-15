@@ -27,7 +27,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         foreach (var desc in _dataSource.Machines)
         {
-            var vm = new MachineViewModel(desc);
+            var vm = new MachineViewModel(desc) { CanMaintain = dataSource.CanMaintain };
             vm.AlarmRaised += OnAlarmRaised;
             vm.MaintenanceRequested += OnMaintenanceRequested;
             vm.Update(_dataSource.GetSnapshot(desc.Id));
@@ -60,6 +60,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnMaintenanceRequested(MachineViewModel vm)
     {
+        if (!_dataSource.CanMaintain) return; // statik kaynak: sahte "bakim yapildi" uretme
         _dataSource.Maintain(vm.Id);
         vm.Update(_dataSource.GetSnapshot(vm.Id));
         RecalculateSummary();

@@ -38,4 +38,7 @@ public sealed class SnapshotStationSource : IDataSource
     public MachineSnapshot GetSnapshot(string machineId) => _source.UnitSnapshot(machineId);
 
     public void Maintain(string machineId) { /* snapshot'ta bakım yok */ }
+
+    // Statik veri — bakım uygulanamaz; UI butonu gizler.
+    public bool CanMaintain => false;
 }

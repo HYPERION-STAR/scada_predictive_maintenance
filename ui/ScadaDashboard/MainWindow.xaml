@@ -184,9 +184,10 @@
                                                      Values="{Binding VibrationHistory}"/>
                                     </StackPanel>
 
-                                    <!-- Alt: bakim butonu -->
+                                    <!-- Alt: bakim butonu (statik kaynakta gizli) -->
                                     <Button Style="{StaticResource GhostButton}" Margin="0,14,0,0"
-                                            Content="Bakım Yap" Command="{Binding MaintainCommand}"/>
+                                            Content="Bakım Yap" Command="{Binding MaintainCommand}"
+                                            Visibility="{Binding CanMaintain, Converter={StaticResource BoolToVis}}"/>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>

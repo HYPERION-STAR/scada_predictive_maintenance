@@ -25,6 +25,9 @@ public sealed class MachineViewModel : INotifyPropertyChanged
     public string Name { get; }
     public string Type { get; }
 
+    /// <summary>Kaynak bakim uygulayabiliyor mu? (Snapshot'ta false → buton gizli.)</summary>
+    public bool CanMaintain { get; init; } = true;
+
     /// <summary>Kritik esige yeni girildiginde MainViewModel'i uyarir.</summary>
     public event Action<MachineViewModel>? AlarmRaised;
 

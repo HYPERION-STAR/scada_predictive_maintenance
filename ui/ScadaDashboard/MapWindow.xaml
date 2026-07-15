@@ -31,6 +31,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button Content="Makine Paneli" Click="OpenDashboard_Click" Style="{StaticResource GhostButton}"
                             Padding="12,6" Margin="0,0,14,0"/>
+                    <Button Content="Ayarlar" Click="OpenSettings_Click" Style="{StaticResource GhostButton}"
+                            Padding="12,6" Margin="0,0,14,0"/>
                     <Border x:Name="AlarmBox" Background="#E74C3C" CornerRadius="6" Padding="10,5" Margin="0,0,14,0"
                             Visibility="Collapsed">
                         <TextBlock x:Name="AlarmText" FontSize="12" FontWeight="Bold" Foreground="#0F1620"/>

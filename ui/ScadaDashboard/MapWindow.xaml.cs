@@ -10,7 +10,8 @@ public sealed record SensorRow(string Name, string Value);
 
 public partial class MapWindow : Window
 {
-    private readonly IPipelineSource _source;
+    private IPipelineSource _source = null!;   // ApplySource ctor'da doldurur
+    private Services.AppSettings _settings = Services.AppSettings.Load();
     private readonly DispatcherTimer _render;
     private int _renderTicks;
 
@@ -21,30 +22,9 @@ public partial class MapWindow : Window
     {
         InitializeComponent();
 
-        // Veri kaynagi onceligi: SCADA_HUB_URL (API Hub) > snapshot dosyasi >
-        // simulasyon. Boylece backend olmadan da UI bagimsiz calisir.
-        var hub = Environment.GetEnvironmentVariable("SCADA_HUB_URL");
-        string? snapshotPath = string.IsNullOrWhiteSpace(hub) ? FindSnapshotFile() : null;
-        if (!string.IsNullOrWhiteSpace(hub))
-        {
-            _source = new HttpPipelineSource(hub);
-            SourceLabel.Text = "  •  Veri kaynağı: API HUB";
-        }
-        else if (snapshotPath != null && TryLoadSnapshot(snapshotPath, out var snapSource))
-        {
-            _source = snapSource;
-            SourceLabel.Text = "  •  Veri kaynağı: SNAPSHOT";
-        }
-        else
-        {
-            _source = new PipelineSimulator();
-        }
-
-        // Uniteler simulasyon ve snapshot kaynaklarinda var (Hub'da ileride).
-        UnitsButton.Visibility = _source is PipelineSimulator or SnapshotSource
-            ? Visibility.Visible : Visibility.Collapsed;
-
-        Map.Source = _source;
+        // Veri kaynagi: kalici ayar (settings.json) uygulanir; "Otomatik" modda
+        // oncelik SCADA_HUB_URL > snapshot dosyasi > simulasyon.
+        ApplySource(_settings);
         Map.NodeClicked += OnNodeClicked;
 
         // ~16 fps render (akis animasyonu); simulasyon durumu saniyede 1 ilerler.
@@ -65,6 +45,70 @@ public partial class MapWindow : Window
         };
         UpdateAlarms();
         _render.Start();
+    }
+
+    // Secilen veri kaynagini kur ve UI'yi guncelle (baslangicta + ayar degisince).
+    private void ApplySource(Services.AppSettings s)
+    {
+        string? snapshotPath = FindSnapshotFile();
+        IPipelineSource src;
+        string label;
+
+        if (s.SourceMode == Services.SourceMode.Simulasyon)
+        {
+            PipelineTopology.ResetToDefault();
+            src = new PipelineSimulator(); label = "SİMÜLASYON";
+        }
+        else if (s.SourceMode == Services.SourceMode.Snapshot
+                 && snapshotPath != null && TryLoadSnapshot(snapshotPath, out var snap))
+        {
+            src = snap; label = "SNAPSHOT";
+        }
+        else if (s.SourceMode == Services.SourceMode.ApiHub && s.HubUrl.Length > 0)
+        {
+            PipelineTopology.ResetToDefault();
+            src = new HttpPipelineSource(s.HubUrl); label = "API HUB";
+        }
+        else // Otomatik (veya secilen kaynak kurulamadi)
+        {
+            var hub = Environment.GetEnvironmentVariable("SCADA_HUB_URL");
+            if (!string.IsNullOrWhiteSpace(hub))
+            {
+                PipelineTopology.ResetToDefault();
+                src = new HttpPipelineSource(hub); label = "API HUB";
+            }
+            else if (snapshotPath != null && TryLoadSnapshot(snapshotPath, out var snap2))
+            {
+                src = snap2; label = "SNAPSHOT";
+            }
+            else
+            {
+                PipelineTopology.ResetToDefault();
+                src = new PipelineSimulator(); label = "SİMÜLASYON";
+            }
+        }
+
+        _source = src;
+        SourceLabel.Text = $"  •  Veri kaynağı: {label}";
+        UnitsButton.Visibility = _source is PipelineSimulator or SnapshotSource
+            ? Visibility.Visible : Visibility.Collapsed;
+        Map.Source = _source;
+
+        // Acik detay eski kaynaga aitti; kapat.
+        _selected = null;
+        Detail.Visibility = Visibility.Collapsed;
+        UpdateAlarms();
+    }
+
+    // Ayarlar penceresi: kaynak degisirse aninda uygula.
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SettingsWindow(_settings, FindSnapshotFile()) { Owner = this };
+        if (dlg.ShowDialog() == true)
+        {
+            _settings = dlg.Result;
+            ApplySource(_settings);
+        }
     }
 
     // Tam ag snapshot dosyasini bul: SCADA_SNAPSHOT env yolu, yoksa exe

@@ -23,7 +23,7 @@ public sealed record PSegment(
 /// </summary>
 public static class PipelineTopology
 {
-    private static IReadOnlyList<PNode> _nodes = new List<PNode>
+    private static readonly IReadOnlyList<PNode> _defaultNodes = new List<PNode>
     {
         new("N1", "Kuzey Giriş",        "BORDER",   41.9, 28.0, false),
         new("N2", "Trakya KS",          "CS",       41.0, 28.9, true),
@@ -36,7 +36,7 @@ public static class PipelineTopology
     };
 
     // MVP kapasiteleri simülatörün akış ölçeğiyle uyumlu (~60 mcm/gün tavan).
-    private static IReadOnlyList<PSegment> _segments = new List<PSegment>
+    private static readonly IReadOnlyList<PSegment> _defaultSegments = new List<PSegment>
     {
         new("S1", "N1", "N2", "gas", 60),
         new("S2", "N2", "N3", "gas", 60),
@@ -47,6 +47,9 @@ public static class PipelineTopology
         new("S7", "N2", "N8", "gas", 60),
     };
 
+    private static IReadOnlyList<PNode> _nodes = _defaultNodes;
+    private static IReadOnlyList<PSegment> _segments = _defaultSegments;
+
     public static IReadOnlyList<PNode> Nodes => _nodes;
     public static IReadOnlyList<PSegment> Segments => _segments;
 
@@ -55,6 +58,13 @@ public static class PipelineTopology
     {
         _nodes = nodes;
         _segments = segments;
+    }
+
+    /// <summary>7 düğümlü MVP ağına geri döner (sim/hub kaynakları için).</summary>
+    public static void ResetToDefault()
+    {
+        _nodes = _defaultNodes;
+        _segments = _defaultSegments;
     }
 
     public static PNode NodeById(string id) => _nodes.First(n => n.Id == id);

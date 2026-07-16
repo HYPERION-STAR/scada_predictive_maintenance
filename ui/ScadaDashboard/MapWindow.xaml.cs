@@ -69,6 +69,12 @@ public partial class MapWindow : Window
         {
             src = snap; label = "SNAPSHOT";
         }
+        else if (s.SourceMode == Services.SourceMode.Canli
+                 && snapshotPath != null && s.LiveUrl.Length > 0
+                 && TryLoadLive(snapshotPath, s.LiveUrl, out var live))
+        {
+            src = live; label = "CANLI";
+        }
         else if (s.SourceMode == Services.SourceMode.ApiHub && s.HubUrl.Length > 0)
         {
             PipelineTopology.ResetToDefault();
@@ -76,8 +82,14 @@ public partial class MapWindow : Window
         }
         else // Otomatik (veya secilen kaynak kurulamadi)
         {
+            var liveUrl = Environment.GetEnvironmentVariable("SCADA_LIVE_URL");
             var hub = Environment.GetEnvironmentVariable("SCADA_HUB_URL");
-            if (!string.IsNullOrWhiteSpace(hub))
+            if (!string.IsNullOrWhiteSpace(liveUrl) && snapshotPath != null
+                && TryLoadLive(snapshotPath, liveUrl, out var liveAuto))
+            {
+                src = liveAuto; label = "CANLI";
+            }
+            else if (!string.IsNullOrWhiteSpace(hub))
             {
                 PipelineTopology.ResetToDefault();
                 src = new HttpPipelineSource(hub); label = "API HUB";
@@ -145,6 +157,26 @@ public partial class MapWindow : Window
             if (data.Nodes.Count == 0) { source = null!; return false; }
             PipelineTopology.Load(data.Nodes, data.Segments);
             source = new SnapshotSource(data);
+            return true;
+        }
+        catch
+        {
+            source = null!;
+            return false;
+        }
+    }
+
+    // Canli kaynak: topolojiyi snapshot dosyasindan al, telemetriyi canli
+    // endpoint'ten cek. Dosya/URL bozuksa sessizce diger kaynaklara dusulur.
+    private static bool TryLoadLive(string path, string url, out LiveSnapshotSource source)
+    {
+        try
+        {
+            var data = SnapshotLoader.Load(path);
+            if (data.Nodes.Count == 0) { source = null!; return false; }
+            PipelineTopology.Load(data.Nodes, data.Segments);
+            source = new LiveSnapshotSource(data, url);
+            source.Tick(); // ilk canli cekisi hemen baslat (dosya telemetrisi son iyi deger)
             return true;
         }
         catch

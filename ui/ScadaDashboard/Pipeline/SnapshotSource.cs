@@ -3,12 +3,14 @@ using ScadaDashboard.Models;
 namespace ScadaDashboard.Pipeline;
 
 /// <summary>
-/// Statik snapshot'tan beslenen harita kaynağı. Snapshot'ta sağlık/RUL yok
+/// Snapshot telemetrisinden beslenen harita kaynağı. Snapshot'ta sağlık/RUL yok
 /// (onlar AI'ın çıktısı, DB predictions tablosuyla gelecek) — o yüzden
 /// istasyon sağlığı en kötü ünitenin titreşiminden PROXY olarak türetilir:
-/// 2 mm/s → %100, 9 mm/s → %0. Anlık görüntü olduğundan Tick() no-op.
+/// 2 mm/s → %100, 9 mm/s → %0. Statik dosyada Tick() no-op; canlı kaynak
+/// (<see cref="LiveSnapshotSource"/>) Tick()'i override edip telemetriyi tazeler.
+/// Topoloji her iki durumda da sabittir; yalnızca telemetri değişir.
 /// </summary>
-public sealed class SnapshotSource : IPipelineSource
+public class SnapshotSource : IPipelineSource
 {
     private const double VibHealthy = 2.0;   // mm/s → %100
     private const double VibDead = 9.0;      // mm/s → %0
@@ -18,16 +20,24 @@ public sealed class SnapshotSource : IPipelineSource
     private readonly SnapshotData _data;
     private readonly Dictionary<string, double> _segCapacity = new();
 
+    // Telemetri değiştirilebilir: statik dosyada sabit, canlı kaynakta her tick yenilenir.
+    private IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> _telemetry;
+
     public SnapshotSource(SnapshotData data)
     {
         _data = data;
+        _telemetry = data.Telemetry;
         foreach (var s in data.Segments) _segCapacity[s.Id] = s.MaxCapacity;
     }
 
-    public void Tick() { } // statik anlık görüntü — zaman ilerlemez
+    public virtual void Tick() { } // statik anlık görüntü — zaman ilerlemez
+
+    /// <summary>Telemetriyi atomik olarak değiştirir (canlı kaynak her tick çağırır).</summary>
+    protected void SetTelemetry(IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> telemetry)
+        => _telemetry = telemetry;
 
     private IReadOnlyDictionary<string, double>? Telem(string id) =>
-        _data.Telemetry.TryGetValue(SnapshotLoader.Norm(id), out var t) ? t : null;
+        _telemetry.TryGetValue(SnapshotLoader.Norm(id), out var t) ? t : null;
 
     // Titreşimden proxy sağlık (2 mm/s → %100, 9 mm/s → %0).
     private static double VibHealth(double vib) =>

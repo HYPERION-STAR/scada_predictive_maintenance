@@ -6,10 +6,11 @@ namespace ScadaDashboard.Services;
 /// <summary>Harita veri kaynağı seçimi (ayarlar penceresinden).</summary>
 public enum SourceMode
 {
-    Otomatik,    // SCADA_HUB_URL > snapshot dosyası > simülasyon
+    Otomatik,    // SCADA_LIVE_URL > SCADA_HUB_URL > snapshot dosyası > simülasyon
     Simulasyon,
     Snapshot,
     ApiHub,
+    Canli,       // canlı telemetri endpoint'i (snapshot topolojisi + HTTP yoklama)
 }
 
 /// <summary>
@@ -20,6 +21,9 @@ public sealed class AppSettings
 {
     public SourceMode SourceMode { get; set; } = SourceMode.Otomatik;
     public string HubUrl { get; set; } = "";
+
+    /// <summary>Canlı telemetri endpoint'i (Canli modu; topoloji yine snapshot dosyasından).</summary>
+    public string LiveUrl { get; set; } = "http://100.114.223.5:8000/api/scada/live_data";
 
     private static string PathFor() =>
         System.IO.Path.Combine(AppContext.BaseDirectory, "settings.json");

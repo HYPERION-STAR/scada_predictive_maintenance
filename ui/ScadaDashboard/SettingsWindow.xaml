@@ -40,6 +40,21 @@
             </StackPanel>
         </RadioButton>
 
+        <RadioButton x:Name="ModeLive" GroupName="src" Margin="0,4"
+                     Foreground="{StaticResource TextBrush}">
+            <StackPanel>
+                <TextBlock Text="Canlı" FontSize="13"/>
+                <TextBlock x:Name="LiveInfo" Text="Canlı telemetri endpoint'i (topoloji snapshot dosyasından)"
+                           FontSize="10.5" Foreground="{StaticResource MutedBrush}"/>
+            </StackPanel>
+        </RadioButton>
+
+        <TextBlock Text="Canlı adres" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                   Margin="24,6,0,2"/>
+        <TextBox x:Name="LiveUrlBox" Margin="24,0,0,0" Padding="6,4" FontSize="12"
+                 Background="{StaticResource CardBrush}" Foreground="{StaticResource TextBrush}"
+                 BorderBrush="{StaticResource StrokeBrush}"/>
+
         <RadioButton x:Name="ModeHub" GroupName="src" Margin="0,4"
                      Foreground="{StaticResource TextBrush}">
             <StackPanel>

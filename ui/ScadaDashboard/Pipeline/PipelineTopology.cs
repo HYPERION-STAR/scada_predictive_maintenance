@@ -3,8 +3,8 @@ namespace ScadaDashboard.Pipeline;
 /// <summary>Coğrafi nokta (segment güzergâh polyline'ları için).</summary>
 public readonly record struct GeoPoint(double Lat, double Lon);
 
-/// <summary>Harita düğümü (istasyon / sınır / çıkış / kavşak).</summary>
-public sealed record PNode(string Id, string Name, string Type, double Lat, double Lon, bool IsStation);
+/// <summary>Harita düğümü (istasyon / sınır / çıkış / kavşak). Region snapshot bölge anahtarı.</summary>
+public sealed record PNode(string Id, string Name, string Type, double Lat, double Lon, bool IsStation, string Region = "");
 
 /// <summary>
 /// İki düğüm arası boru parçası (hat). MaxCapacity segment kapasitesi

@@ -98,6 +98,7 @@ public partial class MapWindow : Window
         UnitsButton.Visibility = _source is PipelineSimulator or SnapshotSource
             ? Visibility.Visible : Visibility.Collapsed;
         Map.Source = _source;
+        BuildRegionBar(); // kaynak degisince bolge cubugu yenilenir
 
         // Acik detay eski kaynaga aitti; kapat.
         _selected = null;
@@ -151,6 +152,40 @@ public partial class MapWindow : Window
             source = null!;
             return false;
         }
+    }
+
+    // Yuzen bolge cubugunu doldur: "Tümü" + her snapshot bolgesi icin cip.
+    // Bolge bilgisi yoksa (sim/hub) cubuk gizlenir.
+    private void BuildRegionBar()
+    {
+        RegionBar.Children.Clear();
+        var present = new HashSet<string>(PipelineTopology.Nodes.Select(n => n.Region));
+        present.Remove("");
+        if (present.Count == 0) { RegionBarHost.Visibility = Visibility.Collapsed; return; }
+
+        RegionBarHost.Visibility = Visibility.Visible;
+        RegionBar.Children.Add(MakeRegionChip("Tümü", null));
+        foreach (var (key, ad) in Pipeline.PipelineMapControl.Regions)
+            if (present.Contains(key))
+                RegionBar.Children.Add(MakeRegionChip(ad, key));
+    }
+
+    private System.Windows.Controls.Button MakeRegionChip(string text, string? regionKey)
+    {
+        var b = new System.Windows.Controls.Button
+        {
+            Content = text,
+            Style = (System.Windows.Style)FindResource("GhostButton"),
+            Padding = new Thickness(9, 3, 9, 3),
+            Margin = new Thickness(2, 0, 2, 0),
+            FontSize = 11,
+        };
+        b.Click += (_, _) =>
+        {
+            if (regionKey == null) Map.ResetView();
+            else Map.FocusRegion(regionKey);
+        };
+        return b;
     }
 
     // Alt bardaki kategori onay kutusu: isaret kalkinca o tur haritada gizlenir.

@@ -35,7 +35,7 @@ public static class SnapshotLoader
     {
         using var doc = JsonDocument.Parse(File.ReadAllText(path));
 
-        var rawNodes = new Dictionary<string, (string Name, string Type, double Lat, double Lon)>();
+        var rawNodes = new Dictionary<string, (string Name, string Type, double Lat, double Lon, string Region)>();
         var segments = new List<PSegment>();
         var segSeen = new HashSet<string>();
         var telemetry = new Dictionary<string, IReadOnlyDictionary<string, double>>();
@@ -58,7 +58,8 @@ public static class SnapshotLoader
                     n.GetProperty("name").GetString() ?? id,
                     type,
                     n.GetProperty("lat").GetDouble(),
-                    n.GetProperty("lon").GetDouble());
+                    n.GetProperty("lon").GetDouble(),
+                    region.Name); // snapshot bölge anahtarı (ör. "ic_anadolu")
             }
 
             if (region.Value.TryGetProperty("segments", out var segArr)
@@ -133,7 +134,7 @@ public static class SnapshotLoader
         var nodes = new List<PNode>(rawNodes.Count);
         foreach (var (id, r) in rawNodes)
             nodes.Add(new PNode(id, r.Name, r.Type, r.Lat, r.Lon,
-                r.Type == "CS" && stationUnits.ContainsKey(id)));
+                r.Type == "CS" && stationUnits.ContainsKey(id), r.Region));
 
         return new SnapshotData
         {

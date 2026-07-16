@@ -216,6 +216,7 @@ public sealed class PipelineMapControl : Control
 
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         if (_showGeoLabels) DrawGeoLabels(dc, project, dpi);
+        DrawRegionLabels(dc, project, dpi);
 
         _screen.Clear();
         foreach (var n in nodes)
@@ -331,6 +332,7 @@ public sealed class PipelineMapControl : Control
             var p = _screen[n.Id];
             var snap = _source.Node(n.Id);
             bool hovered = n.Id == _hoverId && !_hoverSeg;
+            bool dimmed = _activeRegion != null && n.Region != _activeRegion; // izolasyon
             double r = (n.IsStation ? 12 : 8) * nodeScale;
 
             // Hover: 120ms'de yumusak %20 buyume.
@@ -340,7 +342,9 @@ public sealed class PipelineMapControl : Control
                 r *= 1 + 0.20 * (ht * ht * (3 - 2 * ht)); // smoothstep
             }
 
+            if (dimmed) dc.PushOpacity(0.22);
             DrawNodeGlyph(dc, n, p, r, snap, nodeScale);
+            if (dimmed) dc.Pop();
 
             // Secili istasyon: parlak halka — detay paneliyle gorsel bag.
             if (n.Id == _selectedId)
@@ -350,7 +354,7 @@ public sealed class PipelineMapControl : Control
             }
 
             // Etiket yalniz: secili, hover, onemli sehir, ya da yakinlasinca (istasyonlar).
-            bool showLabel = n.Id == _selectedId || hovered || IsMajorCity(n) || (zoomLabels && n.IsStation);
+            bool showLabel = !dimmed && (n.Id == _selectedId || hovered || IsMajorCity(n) || (zoomLabels && n.IsStation));
             if (showLabel)
             {
                 var nc = n; var pc = p; var rc = r;
@@ -446,6 +450,25 @@ public sealed class PipelineMapControl : Control
             default: // JUNCTION / LNG / FSRU / TERMINAL: ici bos halka
                 dc.DrawEllipse(new SolidColorBrush(Bg), new Pen(colBrush, Math.Max(1.5, 2.4 * nodeScale)), p, r, r);
                 break;
+        }
+    }
+
+    // Bolge adlarini bolge merkezine cizer (bolge ayrimi; snapshot bolgeleri).
+    private void DrawRegionLabels(DrawingContext dc, Func<double, double, Point> project, double dpi)
+    {
+        var groups = PipelineTopology.Nodes.Where(n => n.Region.Length > 0)
+            .GroupBy(n => n.Region);
+        foreach (var grp in groups)
+        {
+            // İzole modda yalniz aktif bolgenin adi (digerleri soluk zaten).
+            if (_activeRegion != null && grp.Key != _activeRegion) continue;
+            double cLat = grp.Average(n => n.Lat), cLon = grp.Average(n => n.Lon);
+            var p = project(cLat, cLon);
+            bool active = grp.Key == _activeRegion;
+            var col = active ? Color.FromArgb(210, 0x4E, 0xCD, 0xC4)
+                             : Color.FromArgb(70, 0x7E, 0x8C, 0x9C);
+            var ft = Text(RegionAd(grp.Key).ToUpperInvariant(), active ? 14 : 11.5, col, dpi);
+            dc.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2));
         }
     }
 
@@ -594,7 +617,35 @@ public sealed class PipelineMapControl : Control
     }
 
     /// <summary>Tam Turkiye gorunumune don.</summary>
-    public void ResetView() { _zoom = 1; _panX = 0; _panY = 0; InvalidateVisual(); }
+    public void ResetView() { _activeRegion = null; _zoom = 1; _panX = 0; _panY = 0; InvalidateVisual(); }
+
+    // Aktif (izole) bolge: digerleri soluklasir, o bolgeye odaklanilir.
+    private string? _activeRegion;
+
+    // Bolge anahtari -> Turkce ad (UI ve etiketler icin).
+    public static readonly (string Key, string Ad)[] Regions =
+    {
+        ("marmara", "Marmara"), ("ege", "Ege"), ("akdeniz", "Akdeniz"),
+        ("ic_anadolu", "İç Anadolu"), ("orta_anadolu", "Orta Anadolu"),
+        ("karadeniz", "Karadeniz"), ("dogu_anadolu", "Doğu Anadolu"),
+        ("guneydogu_anadolu", "Güneydoğu Anadolu"),
+    };
+
+    private static string RegionAd(string key)
+    {
+        foreach (var (k, ad) in Regions) if (k == key) return ad;
+        return key;
+    }
+
+    /// <summary>Bir bolgeyi izole et: o bolgenin dugumlerine odaklan, digerlerini soluklastir.</summary>
+    public void FocusRegion(string regionKey)
+    {
+        var pts = PipelineTopology.Nodes.Where(n => n.Region == regionKey).ToList();
+        if (pts.Count == 0) return;
+        _activeRegion = regionKey;
+        FocusBounds(pts.Min(n => n.Lat), pts.Max(n => n.Lat),
+                    pts.Min(n => n.Lon), pts.Max(n => n.Lon), 0.35);
+    }
 
     /// <summary>Polyline uzerinde bastan itibaren verilen mesafedeki nokta.</summary>
     private static Point PointAlong(Point[] pts, double dist) => PointAlong(pts, dist, out _);

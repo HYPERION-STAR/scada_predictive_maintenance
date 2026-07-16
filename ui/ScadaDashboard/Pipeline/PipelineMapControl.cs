@@ -44,8 +44,6 @@ public sealed class PipelineMapControl : Control
 
     // Zoom + pan durumu.
     private double _zoom = 1, _panX, _panY;
-    // Yogun agda dugum boyutu olcegi (render'da hesaplanir; hit-test de kullanir).
-    private double _nodeScale = 1.0;
     private bool _dragging, _moved;
     private Point _dragStart;
     private double _panStartX, _panStartY;
@@ -237,40 +235,32 @@ public sealed class PipelineMapControl : Control
         // Yogun agda (snapshot: ~90 dugum) her dugume etiket sigmaz; yalnizca
         // istasyon etiketleri cizilir, digerleri tooltip ile okunur.
         bool dense = nodes.Count > 30;
-
-        // Yogun agda ulke gorunumunde daireler kucultulur (yakin sehir dugumleri
-        // ust uste binmesin); zoom arttikca dugumler ayristigi icin tam boyuta doner.
-        _nodeScale = dense ? Math.Clamp(0.45 + 0.55 * (_zoom - 1) / 1.5, 0.45, 1.0) : 1.0;
-
         foreach (var n in nodes)
         {
             var p = _screen[n.Id];
             var snap = _source.Node(n.Id);
-            double r = (n.IsStation ? 12 : 8) * _nodeScale;
+            double r = n.IsStation ? 12 : 8;
 
             Brush fill = n.IsStation ? HealthBrush(snap.Health)
                                      : new SolidColorBrush(NodeTypeColor(n.Type));
             var halo = ((SolidColorBrush)fill).Color;
-            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, halo.R, halo.G, halo.B)), null,
-                p, r + 6 * _nodeScale, r + 6 * _nodeScale);
+            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, halo.R, halo.G, halo.B)), null, p, r + 6, r + 6);
 
             // Kritik istasyon: kirmizi yanip sonen halka (alarm).
             if (n.IsStation && snap.Health < 20)
             {
                 double pulse = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 300.0);
                 byte a = (byte)(40 + pulse * 190);
-                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(a, 0xE7, 0x4C, 0x3C)), 3),
-                    p, r + 10 * _nodeScale, r + 10 * _nodeScale);
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(a, 0xE7, 0x4C, 0x3C)), 3), p, r + 10, r + 10);
             }
 
-            dc.DrawEllipse(fill, new Pen(new SolidColorBrush(Bg), 2 * _nodeScale), p, r, r);
+            dc.DrawEllipse(fill, new Pen(new SolidColorBrush(Bg), 2), p, r, r);
 
             // Depo: yandan tank doluluk gostergesi.
             if (n.Type == "STORAGE")
             {
                 double lvl = _source.Level(n.Id);
-                var tank = new Rect(p.X + r + 6 * _nodeScale, p.Y - 12 * _nodeScale,
-                                    11 * _nodeScale, 24 * _nodeScale);
+                var tank = new Rect(p.X + r + 6, p.Y - 12, 11, 24);
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)),
                     new Pen(new SolidColorBrush(MutedCol), 1), tank);
                 double fh = tank.Height * Math.Clamp(lvl, 0, 100) / 100.0;
@@ -337,9 +327,8 @@ public sealed class PipelineMapControl : Control
         _dragging = false; ReleaseMouseCapture();
         if (_moved) return; // sürüklemeyse tıklama sayma
         var click = e.GetPosition(this);
-        double hit = Math.Max(12, 26 * _nodeScale); // kucuk dairede dar isabet alani
         foreach (var n in PipelineTopology.Nodes)
-            if (_screen.TryGetValue(n.Id, out var p) && (click - p).Length <= hit)
+            if (_screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
             { NodeClicked?.Invoke(n); break; }
     }
 
@@ -356,9 +345,8 @@ public sealed class PipelineMapControl : Control
             return;
         }
         _hoverId = null;
-        double hover = Math.Max(9, 18 * _nodeScale);
         foreach (var n in PipelineTopology.Nodes)
-            if (_screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= hover)
+            if (_screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
             { _hoverId = n.Id; _hoverSeg = false; return; }
         foreach (var s in PipelineTopology.Segments)
             if (_segScreen.TryGetValue(s.Id, out var pts) && DistToPolyline(_mouse, pts) <= 7)

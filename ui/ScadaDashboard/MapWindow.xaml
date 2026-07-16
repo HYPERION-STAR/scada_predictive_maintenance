@@ -37,6 +37,31 @@
                             <TextBlock Text="Makine Paneli" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <ToggleButton x:Name="LayersButton" Style="{StaticResource GhostToggle}"
+                                  Padding="12,6" Margin="0,0,14,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE81E;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Katmanlar" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ToggleButton>
+                    <Popup PlacementTarget="{Binding ElementName=LayersButton}" Placement="Bottom"
+                           IsOpen="{Binding IsChecked, ElementName=LayersButton}" StaysOpen="False"
+                           AllowsTransparency="True" HorizontalOffset="-40" VerticalOffset="6">
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource StrokeBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="14,12" Effect="{StaticResource CardShadow}">
+                            <StackPanel>
+                                <TextBlock Text="KATMANLAR" FontSize="10" FontWeight="Bold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8"/>
+                                <CheckBox Content="İl sınırları" IsChecked="True" Margin="0,3" Foreground="{StaticResource TextBrush}"
+                                          Checked="LayerProvinces" Unchecked="LayerProvinces"/>
+                                <CheckBox Content="Coğrafi adlar (deniz/ülke/bölge)" IsChecked="True" Margin="0,3" Foreground="{StaticResource TextBrush}"
+                                          Checked="LayerGeo" Unchecked="LayerGeo"/>
+                                <CheckBox Content="Akış göstergeleri" IsChecked="True" Margin="0,3" Foreground="{StaticResource TextBrush}"
+                                          Checked="LayerFlow" Unchecked="LayerFlow"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
                     <Button Click="OpenSettings_Click" Style="{StaticResource GhostButton}"
                             Padding="12,6" Margin="0,0,14,0">
                         <StackPanel Orientation="Horizontal">

@@ -198,6 +198,14 @@ public partial class MapWindow : Window
         Map.InvalidateVisual();
     }
 
+    // Katman gorunurluk onay kutulari (ozellestirme).
+    private void LayerProvinces(object sender, RoutedEventArgs e)
+    { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowProvinceBorders = c.IsChecked == true; }
+    private void LayerGeo(object sender, RoutedEventArgs e)
+    { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowGeoLabels = c.IsChecked == true; }
+    private void LayerFlow(object sender, RoutedEventArgs e)
+    { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowFlowArrows = c.IsChecked == true; }
+
     // Genel makine panelini ac (5 jenerik makine).
     private void OpenDashboard_Click(object sender, RoutedEventArgs e) => new MainWindow().Show();
 

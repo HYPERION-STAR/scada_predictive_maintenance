@@ -249,13 +249,18 @@ public sealed class PipelineMapControl : Control
             var col = Lerp(lowCol, highCol, snap.LoadRatio);
             double thick = 2.5 + snap.LoadRatio * 4.0;
 
-            // Yuvarlak uclar: polyline kirilmalarinda purussuz gorunum.
-            var glowPen = new Pen(new SolidColorBrush(Color.FromArgb(90, col.R, col.G, col.B)), thick + 3)
-                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            // Boru gorunumu: dista koyu kilif, ustte ana renk, ortada ince parlak
+            // sheen -> silindirik "boru" hissi. Yuvarlak uclar/birlesimler purussuz.
+            var casingCol = Color.FromArgb(150, (byte)(col.R * 0.35), (byte)(col.G * 0.35), (byte)(col.B * 0.35));
+            var casingPen = new Pen(new SolidColorBrush(casingCol), thick + 2.5)
+                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
             var mainPen = new Pen(new SolidColorBrush(col), thick)
-                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
-            for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(glowPen, pts[i], pts[i + 1]);
+                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            var sheenPen = new Pen(new SolidColorBrush(Color.FromArgb(70, 0xFF, 0xFF, 0xFF)), Math.Max(0.8, thick * 0.32))
+                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(casingPen, pts[i], pts[i + 1]);
             for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(mainPen, pts[i], pts[i + 1]);
+            for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(sheenPen, pts[i], pts[i + 1]);
 
             // Sizinti: yanip sonen kirmizi kalin katman.
             if (snap.Leak)
@@ -271,24 +276,21 @@ public sealed class PipelineMapControl : Control
             double segLen = 0;
             for (int i = 0; i + 1 < pts.Length; i++) segLen += (pts[i + 1] - pts[i]).Length;
 
-            // Akis isaretleri: yon gosteren kucuk oklar (chevron), akisla kayar.
-            if (_showFlow)
+            // Akis: borunun icinde akan soluk kisa cizgiler (yon boyunca kayar).
+            // Eski parlak beyaz oklardan daha ince ve dikkat dagitmayan.
+            if (_showFlow && segLen > 20)
             {
-                var dotBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xEE, 0xF6));
-                const int dots = 4;
-                for (int i = 0; i < dots; i++)
+                int dashN = Math.Clamp((int)(segLen / 40), 2, 10);
+                double dashLen = Math.Min(6, thick * 1.6);
+                var flowPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 0xDF, 0xEA, 0xF3)),
+                    Math.Max(1.0, thick * 0.5)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+                for (int i = 0; i < dashN; i++)
                 {
-                    double t = (phase + (double)i / dots) % 1.0;
-                    var cp = PointAlong(pts, segLen * t, out var cd);
-                    var perp2 = new Vector(-cd.Y, cd.X);
-                    var tri = new StreamGeometry();
-                    using (var tc = tri.Open())
-                    {
-                        tc.BeginFigure(cp + cd * 3.4, true, true);           // uc: akis yonu
-                        tc.LineTo(cp - cd * 2.2 + perp2 * 2.6, true, false);
-                        tc.LineTo(cp - cd * 2.2 - perp2 * 2.6, true, false);
-                    }
-                    dc.DrawGeometry(dotBrush, null, tri);
+                    double t = (phase + (double)i / dashN) % 1.0;
+                    double d = segLen * t;
+                    var a = PointAlong(pts, Math.Max(0, d - dashLen / 2), out _);
+                    var b = PointAlong(pts, Math.Min(segLen, d + dashLen / 2), out _);
+                    dc.DrawLine(flowPen, a, b);
                 }
             }
 
@@ -453,23 +455,17 @@ public sealed class PipelineMapControl : Control
         }
     }
 
-    // Bolge adlarini bolge merkezine cizer (bolge ayrimi; snapshot bolgeleri).
+    // Aktif (izole) bolgenin adini merkeze parlak cizer. Izolasyon yokken
+    // bolge adlari cizilmez (deniz/ulke etiketleriyle cakismasin).
     private void DrawRegionLabels(DrawingContext dc, Func<double, double, Point> project, double dpi)
     {
-        var groups = PipelineTopology.Nodes.Where(n => n.Region.Length > 0)
-            .GroupBy(n => n.Region);
-        foreach (var grp in groups)
-        {
-            // İzole modda yalniz aktif bolgenin adi (digerleri soluk zaten).
-            if (_activeRegion != null && grp.Key != _activeRegion) continue;
-            double cLat = grp.Average(n => n.Lat), cLon = grp.Average(n => n.Lon);
-            var p = project(cLat, cLon);
-            bool active = grp.Key == _activeRegion;
-            var col = active ? Color.FromArgb(210, 0x4E, 0xCD, 0xC4)
-                             : Color.FromArgb(70, 0x7E, 0x8C, 0x9C);
-            var ft = Text(RegionAd(grp.Key).ToUpperInvariant(), active ? 14 : 11.5, col, dpi);
-            dc.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2));
-        }
+        if (_activeRegion == null) return;
+        var grp = PipelineTopology.Nodes.Where(n => n.Region == _activeRegion).ToList();
+        if (grp.Count == 0) return;
+        var p = project(grp.Average(n => n.Lat), grp.Average(n => n.Lon));
+        var ft = Text(RegionAd(_activeRegion).ToUpperInvariant(), 15,
+            Color.FromArgb(210, 0x4E, 0xCD, 0xC4), dpi);
+        dc.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2));
     }
 
     // Deniz / komsu ulke etiketlerini cizer (soluk, arka planda baglam).

@@ -82,7 +82,7 @@
 
         <!-- Harita + istasyon detay paneli -->
         <Grid Grid.Row="1">
-            <pm:PipelineMapControl x:Name="Map"/>
+            <pm:PipelineMapControl x:Name="Map" ClipToBounds="True"/>
 
             <!-- Yuzen bolge cubugu: bir bolgeye zoom/izole et -->
             <Border x:Name="RegionBarHost" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0"

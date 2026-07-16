@@ -116,13 +116,37 @@
                     <ItemsControl x:Name="SensorList" Visibility="Collapsed">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,1.5">
-                                    <TextBlock Text="{Binding Name}" FontSize="11"
-                                               Foreground="{StaticResource MutedBrush}"/>
-                                    <TextBlock Text="{Binding Value}" FontSize="11" HorizontalAlignment="Right"
-                                               Style="{StaticResource NumText}"
-                                               Foreground="{StaticResource TextBrush}"/>
-                                </Grid>
+                                <!-- Satir: ince ayirici; grup basligi ayiricisiz, vurgulu -->
+                                <Border x:Name="RowBd" BorderBrush="#1E3348"
+                                        BorderThickness="0,0,0,0.6" Padding="0,3">
+                                    <Grid>
+                                        <TextBlock x:Name="NameTb" Text="{Binding Name}" FontSize="11"
+                                                   Foreground="{StaticResource MutedBrush}"/>
+                                        <TextBlock x:Name="ValTb" Text="{Binding Value}" FontSize="11"
+                                                   HorizontalAlignment="Right"
+                                                   Typography.NumeralAlignment="Tabular"
+                                                   Foreground="{StaticResource TextBrush}"/>
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                        <Setter TargetName="RowBd" Property="BorderThickness" Value="0"/>
+                                        <Setter TargetName="RowBd" Property="Padding" Value="0,10,0,2"/>
+                                        <Setter TargetName="NameTb" Property="FontSize" Value="9.5"/>
+                                        <Setter TargetName="NameTb" Property="FontWeight" Value="Bold"/>
+                                        <Setter TargetName="NameTb" Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                        <Setter TargetName="ValTb" Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <!-- Nominal bant asimi: deger uyari/kritik renginde -->
+                                    <DataTrigger Binding="{Binding Alert}" Value="1">
+                                        <Setter TargetName="ValTb" Property="Foreground" Value="{StaticResource WarnBrush}"/>
+                                        <Setter TargetName="ValTb" Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Alert}" Value="2">
+                                        <Setter TargetName="ValTb" Property="Foreground" Value="{StaticResource CriticalBrush}"/>
+                                        <Setter TargetName="ValTb" Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

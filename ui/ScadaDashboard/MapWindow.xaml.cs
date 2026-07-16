@@ -5,8 +5,11 @@ using ScadaDashboard.Pipeline;
 
 namespace ScadaDashboard;
 
-/// <summary>Detay panelindeki tek sensör satırı (ad + değer).</summary>
-public sealed record SensorRow(string Name, string Value);
+/// <summary>
+/// Detay panelindeki tek sensör satırı. IsHeader=true grup başlığıdır;
+/// Alert 0=normal, 1=uyarı, 2=kritik (değer rengi buna göre).
+/// </summary>
+public sealed record SensorRow(string Name, string Value, bool IsHeader = false, int Alert = 0);
 
 public partial class MapWindow : Window
 {
@@ -261,23 +264,65 @@ public partial class MapWindow : Window
         ["s_21_torque_nm"] = ("Tork", "Nm"),
     };
 
+    // Sensor gruplari (detay panelinde alt basliklar; duz liste yerine spec-sheet).
+    private static readonly (string Baslik, string[] Anahtarlar)[] SensorGruplari =
+    {
+        ("BASINÇ", new[] { "s_1_suction_pressure_bar", "s_2_discharge_pressure_bar",
+                           "s_3_pressure_ratio", "s_12_lube_oil_pressure_bar",
+                           "s_15_seal_gas_pressure_bar", "s_20_filter_dp_bar" }),
+        ("SICAKLIK", new[] { "s_4_suction_temp_c", "s_5_discharge_temp_c",
+                             "s_10_bearing_temp_1_c", "s_11_bearing_temp_2_c",
+                             "s_13_lube_oil_temp_c" }),
+        ("TİTREŞİM & MEKANİK", new[] { "s_6_shaft_rpm", "s_7_vibration_de_mm_s",
+                                       "s_8_vibration_nde_mm_s", "s_9_axial_displacement_mm",
+                                       "s_21_torque_nm" }),
+        ("AKIŞ & PERFORMANS", new[] { "s_14_gas_flow_meter_m3_h", "s_16_gas_flow_m3_h",
+                                      "s_17_power_mw", "s_18_polytropic_efficiency",
+                                      "s_19_surge_margin_pct" }),
+    };
+
+    // Nominal bant asimi esikleri: anahtar -> (uyari, kritik). Asan deger renklenir.
+    private static readonly Dictionary<string, (double Uyari, double Kritik)> SensorEsikleri = new()
+    {
+        ["s_7_vibration_de_mm_s"] = (4.5, 7.1),   // ISO 10816 bolge sinirlarina yakin
+        ["s_8_vibration_nde_mm_s"] = (4.5, 7.1),
+        ["s_10_bearing_temp_1_c"] = (80, 95),
+        ["s_11_bearing_temp_2_c"] = (80, 95),
+        ["s_13_lube_oil_temp_c"] = (60, 75),
+    };
+
+    private static int AlertSeviyesi(string key, double v) =>
+        SensorEsikleri.TryGetValue(key, out var e) ? (v > e.Kritik ? 2 : v > e.Uyari ? 1 : 0) : 0;
+
     // Detay panelinin sensor listesini doldur (yalnizca snapshot kaynaginda).
     private void UpdateSensorList(string stationId)
     {
         if (_source is SnapshotSource snap && snap.WorstUnitSensors(stationId) is { } wu)
         {
             SensorHeader.Text = $"TÜM SENSÖRLER — {wu.UnitId} (EN KÖTÜ ÜNİTE)";
-            SensorList.ItemsSource = wu.Sensors
-                .Where(kv => kv.Key.StartsWith("s_"))
-                .OrderBy(kv => SensorSira(kv.Key))
-                .Select(kv =>
+
+            var rows = new List<SensorRow>();
+            var kalan = wu.Sensors.Where(kv => kv.Key.StartsWith("s_"))
+                                  .ToDictionary(kv => kv.Key, kv => kv.Value);
+            foreach (var (baslik, anahtarlar) in SensorGruplari)
+            {
+                var grup = anahtarlar.Where(kalan.ContainsKey).ToList();
+                if (grup.Count == 0) continue;
+                rows.Add(new SensorRow(baslik, "", IsHeader: true));
+                foreach (var key in grup)
                 {
-                    var (ad, birim) = SensorAdlari.TryGetValue(kv.Key, out var s)
-                        ? s : (GenelSensorAdi(kv.Key), "");
-                    string deger = kv.Value.ToString("0.##");
-                    return new SensorRow(ad, birim.Length > 0 ? $"{deger} {birim}" : deger);
-                })
-                .ToList();
+                    rows.Add(SatirYap(key, kalan[key]));
+                    kalan.Remove(key);
+                }
+            }
+            if (kalan.Count > 0) // gruplara girmeyen (bilinmeyen) sensorler
+            {
+                rows.Add(new SensorRow("DİĞER", "", IsHeader: true));
+                foreach (var kv in kalan.OrderBy(kv => SensorSira(kv.Key)))
+                    rows.Add(SatirYap(kv.Key, kv.Value));
+            }
+
+            SensorList.ItemsSource = rows;
             SensorHeader.Visibility = Visibility.Visible;
             SensorList.Visibility = Visibility.Visible;
         }
@@ -286,6 +331,15 @@ public partial class MapWindow : Window
             SensorHeader.Visibility = Visibility.Collapsed;
             SensorList.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private static SensorRow SatirYap(string key, double deger)
+    {
+        var (ad, birim) = SensorAdlari.TryGetValue(key, out var s)
+            ? s : (GenelSensorAdi(key), "");
+        string metin = deger.ToString("0.##");
+        return new SensorRow(ad, birim.Length > 0 ? $"{metin} {birim}" : metin,
+            Alert: AlertSeviyesi(key, deger));
     }
 
     // "s_12_..." -> 12 (dosyadaki sensor sirasi korunur).

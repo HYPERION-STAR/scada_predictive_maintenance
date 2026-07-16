@@ -84,6 +84,37 @@
                 </Style.Triggers>
             </Style>
 
+            <!-- Dairesel onay kutusu (harita lejanti): Background = kategori rengi.
+                 Isaretliyken dolu renkli daire, degilken ici bos halka + soluk etiket. -->
+            <Style x:Key="CircleCheck" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <StackPanel Orientation="Horizontal" Background="Transparent">
+                                <Grid Width="14" Height="14" VerticalAlignment="Center">
+                                    <Ellipse x:Name="Ring" Stroke="{StaticResource MutedBrush}"
+                                             StrokeThickness="1.3" Fill="Transparent"/>
+                                    <Ellipse x:Name="Dot" Margin="3"
+                                             Fill="{TemplateBinding Background}"/>
+                                </Grid>
+                                <ContentPresenter Margin="5,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter TargetName="Dot" Property="Visibility" Value="Collapsed"/>
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource TextBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

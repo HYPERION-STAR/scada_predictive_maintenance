@@ -17,7 +17,9 @@ public sealed class PipelineMapControl : Control
 {
     private static readonly Color Bg = Color.FromRgb(0x0F, 0x16, 0x20);       // deniz / zemin
     // Harita tabani hafif desatüre: renkli dugum/akislar one ciksin.
-    private static readonly Color Land = Color.FromRgb(0x19, 0x23, 0x2F);     // kara dolgusu
+    private static readonly Color Land = Color.FromRgb(0x19, 0x23, 0x2F);     // kara dolgusu (Turkiye)
+    private static readonly Color NeighLand = Color.FromRgb(0x14, 0x1D, 0x29); // komsu ulke (daha koyu)
+    private static readonly Color NeighEdge = Color.FromRgb(0x3C, 0x4E, 0x60); // komsu/deniz sinir (kiyi cizgisi)
     private static readonly Color Province = Color.FromRgb(0x36, 0x45, 0x55); // il sınırı
     private static readonly Color TextCol = Color.FromRgb(0xE6, 0xEE, 0xF6);
     private static readonly Color MutedCol = Color.FromRgb(0x9A, 0xAF, 0xC4); // App.xaml MutedColor ile ayni
@@ -94,8 +96,9 @@ public sealed class PipelineMapControl : Control
         set { _selectedId = value; InvalidateVisual(); }
     }
 
-    // Provins geometrisi cache (boyut/zoom/pan degisince yeniden kurulur).
+    // Provins + komsu geometrisi cache (boyut/zoom/pan degisince yeniden kurulur).
     private Geometry? _provGeo;
+    private Geometry? _neighGeo;
     private double _pkW, _pkH, _pkZoom = 1, _pkPanX, _pkPanY;
 
     // Taban projeksiyonu (zoom/pan'siz); bolge odaklama hesabi icin saklanir.
@@ -207,9 +210,17 @@ public sealed class PipelineMapControl : Control
             if (_provGeo == null || _pkW != w || _pkH != h
                 || _pkZoom != _zoom || _pkPanX != _panX || _pkPanY != _panY)
             {
-                _provGeo = BuildProvinceGeometry(project);
+                _provGeo = BuildRingGeometry(TurkeyMap.Provinces.SelectMany(p => p.Rings), project);
+                _neighGeo = BuildRingGeometry(NeighborMap.Countries.SelectMany(c => c.Rings), project);
                 _pkW = w; _pkH = h; _pkZoom = _zoom; _pkPanX = _panX; _pkPanY = _panY;
             }
+            // Once komsu ulkeler (daha koyu, altta) -> aradaki bosluk = deniz.
+            // Kiyi/sinir cizgisi katman kapali olsa da hafif kalir (deniz sinirlari).
+            if (_neighGeo != null)
+                dc.DrawGeometry(new SolidColorBrush(NeighLand),
+                    new Pen(new SolidColorBrush(_showProvinces ? NeighEdge
+                        : Color.FromArgb(120, NeighEdge.R, NeighEdge.G, NeighEdge.B)), 1.0), _neighGeo);
+            // Sonra Turkiye (daha acik) ustte -> belirgin durur.
             dc.DrawGeometry(new SolidColorBrush(Land),
                             _showProvinces ? new Pen(new SolidColorBrush(Province), 0.7) : null, _provGeo);
         }
@@ -490,21 +501,21 @@ public sealed class PipelineMapControl : Control
         }
     }
 
-    private Geometry BuildProvinceGeometry(Func<double, double, Point> project)
+    // Verilen halkalari (her biri [lon,lat] noktali) tek dolgulu geometriye cevirir.
+    private static Geometry BuildRingGeometry(IEnumerable<double[][]> rings, Func<double, double, Point> project)
     {
         var geo = new StreamGeometry();
         using (var ctx = geo.Open())
         {
-            foreach (var prov in TurkeyMap.Provinces)
-                foreach (var ring in prov.Rings)
-                {
-                    if (ring.Length < 3) continue;
-                    ctx.BeginFigure(project(ring[0][1], ring[0][0]), true, true);
-                    var pts = new List<Point>(ring.Length - 1);
-                    for (int i = 1; i < ring.Length; i++)
-                        pts.Add(project(ring[i][1], ring[i][0]));
-                    ctx.PolyLineTo(pts, true, false);
-                }
+            foreach (var ring in rings)
+            {
+                if (ring.Length < 3) continue;
+                ctx.BeginFigure(project(ring[0][1], ring[0][0]), true, true);
+                var pts = new List<Point>(ring.Length - 1);
+                for (int i = 1; i < ring.Length; i++)
+                    pts.Add(project(ring[i][1], ring[i][0]));
+                ctx.PolyLineTo(pts, true, false);
+            }
         }
         geo.Freeze();
         return geo;

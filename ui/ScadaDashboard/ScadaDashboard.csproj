@@ -23,6 +23,8 @@
   <ItemGroup>
     <!-- Sadelestirilmis il sinirlari (kaynak: alpers/Turkey-Maps-GeoJSON, Apache-2.0) -->
     <EmbeddedResource Include="Pipeline\turkey.json" />
+    <!-- Komsu ulke sinirlari (kaynak: johan/world.geo.json, 110m, MIT) -->
+    <EmbeddedResource Include="Pipeline\neighbors.json" />
   </ItemGroup>
 
 </Project>

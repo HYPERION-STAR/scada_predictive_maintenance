@@ -38,6 +38,38 @@ public sealed class PipelineMapControl : Control
     /// </summary>
     public HashSet<string> HiddenCategories { get; } = new();
 
+    // --- Katman gorunurlugu (ozellestirme; "Katmanlar" menusu doldurur) ---
+    private bool _showProvinces = true, _showGeoLabels = true, _showFlow = true;
+    public bool ShowProvinceBorders { get => _showProvinces; set { _showProvinces = value; InvalidateVisual(); } }
+    public bool ShowGeoLabels { get => _showGeoLabels; set { _showGeoLabels = value; InvalidateVisual(); } }
+    public bool ShowFlowArrows { get => _showFlow; set { _showFlow = value; InvalidateVisual(); } }
+
+    // Komsu ulke / deniz / onemli sehir etiketleri (cografi baglam).
+    private enum GeoKind { Sea, Country, City }
+    private readonly record struct GeoLabel(string Name, double Lat, double Lon, GeoKind Kind);
+    private static readonly GeoLabel[] GeoLabels =
+    {
+        new("K A R A D E N İ Z", 43.3, 34.5, GeoKind.Sea),
+        new("A K D E N İ Z", 35.0, 31.5, GeoKind.Sea),
+        new("E G E\nD E N İ Z İ", 38.4, 24.9, GeoKind.Sea),
+        new("MARMARA D.", 40.6, 27.9, GeoKind.Sea),
+        new("BULGARİSTAN", 42.3, 25.2, GeoKind.Country),
+        new("YUNANİSTAN", 39.7, 22.2, GeoKind.Country),
+        new("GÜRCİSTAN", 42.4, 43.4, GeoKind.Country),
+        new("ERMENİSTAN", 40.2, 45.4, GeoKind.Country),
+        new("NAHÇIVAN", 39.3, 45.5, GeoKind.Country),
+        new("İRAN", 37.8, 45.9, GeoKind.Country),
+        new("IRAK", 35.4, 43.9, GeoKind.Country),
+        new("SURİYE", 35.1, 38.6, GeoKind.Country),
+        new("RUSYA", 44.6, 37.8, GeoKind.Country),
+    };
+
+    // Adi haritada varsayilan olarak gorunen onemli sehirler (istasyon dugumleri).
+    private static readonly string[] MajorCities =
+        { "İstanbul", "Ankara", "İzmir", "Bursa", "Adana", "Gaziantep", "Konya", "Ceyhan" };
+    private static bool IsMajorCity(PNode n) =>
+        n.IsStation && Array.Exists(MajorCities, c => n.Name.StartsWith(c, StringComparison.Ordinal));
+
     private bool IsHidden(PNode n) => HiddenCategories.Contains(CategoryOf(n));
 
     private static string CategoryOf(PNode n) =>
@@ -145,7 +177,7 @@ public sealed class PipelineMapControl : Control
             double k = Math.Cos(midLat * Math.PI / 180.0);
             double scaledW = (_maxLon - _minLon) * k;
             double scaledH = (_maxLat - _minLat);
-            const double pad = 40;
+            const double pad = 78; // komsu deniz/ulke etiketlerine yer birak
             double scale = Math.Min((w - 2 * pad) / scaledW, (h - 2 * pad) / scaledH);
             double ox = (w - scaledW * scale) / 2.0;
             double oy = (h - scaledH * scale) / 2.0;
@@ -179,14 +211,16 @@ public sealed class PipelineMapControl : Control
                 _pkW = w; _pkH = h; _pkZoom = _zoom; _pkPanX = _panX; _pkPanY = _panY;
             }
             dc.DrawGeometry(new SolidColorBrush(Land),
-                            new Pen(new SolidColorBrush(Province), 0.7), _provGeo);
+                            _showProvinces ? new Pen(new SolidColorBrush(Province), 0.7) : null, _provGeo);
         }
+
+        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        if (_showGeoLabels) DrawGeoLabels(dc, project, dpi);
 
         _screen.Clear();
         foreach (var n in nodes)
             _screen[n.Id] = project(n.Lat, n.Lon);
 
-        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         double phase = (Environment.TickCount % 2000) / 2000.0;
         var lowCol = Color.FromRgb(0x4E, 0xCD, 0xC4);
         var highCol = Color.FromRgb(0xFF, 0x6B, 0x6B);
@@ -237,21 +271,24 @@ public sealed class PipelineMapControl : Control
             for (int i = 0; i + 1 < pts.Length; i++) segLen += (pts[i + 1] - pts[i]).Length;
 
             // Akis isaretleri: yon gosteren kucuk oklar (chevron), akisla kayar.
-            var dotBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xEE, 0xF6));
-            const int dots = 4;
-            for (int i = 0; i < dots; i++)
+            if (_showFlow)
             {
-                double t = (phase + (double)i / dots) % 1.0;
-                var cp = PointAlong(pts, segLen * t, out var cd);
-                var perp2 = new Vector(-cd.Y, cd.X);
-                var tri = new StreamGeometry();
-                using (var tc = tri.Open())
+                var dotBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xEE, 0xF6));
+                const int dots = 4;
+                for (int i = 0; i < dots; i++)
                 {
-                    tc.BeginFigure(cp + cd * 3.4, true, true);           // uc: akis yonu
-                    tc.LineTo(cp - cd * 2.2 + perp2 * 2.6, true, false);
-                    tc.LineTo(cp - cd * 2.2 - perp2 * 2.6, true, false);
+                    double t = (phase + (double)i / dots) % 1.0;
+                    var cp = PointAlong(pts, segLen * t, out var cd);
+                    var perp2 = new Vector(-cd.Y, cd.X);
+                    var tri = new StreamGeometry();
+                    using (var tc = tri.Open())
+                    {
+                        tc.BeginFigure(cp + cd * 3.4, true, true);           // uc: akis yonu
+                        tc.LineTo(cp - cd * 2.2 + perp2 * 2.6, true, false);
+                        tc.LineTo(cp - cd * 2.2 - perp2 * 2.6, true, false);
+                    }
+                    dc.DrawGeometry(dotBrush, null, tri);
                 }
-                dc.DrawGeometry(dotBrush, null, tri);
             }
 
             // Etiket: guzergahin orta noktasi, yerel yone dik yukari kaydirilir.
@@ -312,8 +349,8 @@ public sealed class PipelineMapControl : Control
                 dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(235, TextCol.R, TextCol.G, TextCol.B)), 1.6), p, r + 5, r + 5);
             }
 
-            // Etiket yalniz: secili, hover, ya da yakinlasinca (istasyonlar).
-            bool showLabel = n.Id == _selectedId || hovered || (zoomLabels && n.IsStation);
+            // Etiket yalniz: secili, hover, onemli sehir, ya da yakinlasinca (istasyonlar).
+            bool showLabel = n.Id == _selectedId || hovered || IsMajorCity(n) || (zoomLabels && n.IsStation);
             if (showLabel)
             {
                 var nc = n; var pc = p; var rc = r;
@@ -409,6 +446,28 @@ public sealed class PipelineMapControl : Control
             default: // JUNCTION / LNG / FSRU / TERMINAL: ici bos halka
                 dc.DrawEllipse(new SolidColorBrush(Bg), new Pen(colBrush, Math.Max(1.5, 2.4 * nodeScale)), p, r, r);
                 break;
+        }
+    }
+
+    // Deniz / komsu ulke etiketlerini cizer (soluk, arka planda baglam).
+    private void DrawGeoLabels(DrawingContext dc, Func<double, double, Point> project, double dpi)
+    {
+        foreach (var g in GeoLabels)
+        {
+            var p = project(g.Lat, g.Lon);
+            if (p.X < -60 || p.Y < -40 || p.X > ActualWidth + 60 || p.Y > ActualHeight + 40) continue;
+
+            (double size, Color col) = g.Kind switch
+            {
+                GeoKind.Sea => (12.5, Color.FromArgb(140, 0x5B, 0x76, 0x8E)),
+                GeoKind.Country => (11.0, Color.FromArgb(120, 0x6C, 0x7C, 0x8C)),
+                _ => (10.5, Color.FromArgb(150, 0x8C, 0xA3, 0xB8)),
+            };
+            foreach (var (line, idx) in g.Name.Split('\n').Select((l, i) => (l, i)))
+            {
+                var ft = Text(line, size, col, dpi);
+                dc.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2 + idx * (ft.Height + 1)));
+            }
         }
     }
 

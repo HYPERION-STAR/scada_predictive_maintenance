@@ -66,6 +66,11 @@ public sealed class PipelineMapControl : Control
     private Geometry? _provGeo;
     private double _pkW, _pkH, _pkZoom = 1, _pkPanX, _pkPanY;
 
+    // Taban projeksiyonu (zoom/pan'siz); bolge odaklama hesabi icin saklanir.
+    private Func<double, double, Point>? _geoProj;
+    private bool _geoReady;
+    private Point GeoAt(double lat, double lon) => _geoProj!(lat, lon);
+
     // Zoom + pan durumu.
     private double _zoom = 1, _panX, _panY;
     private bool _dragging, _moved;
@@ -155,6 +160,8 @@ public sealed class PipelineMapControl : Control
                 pad + (lon - minLon) / Math.Max(1e-6, maxLon - minLon) * (w - 2 * pad),
                 pad + (maxLat - lat) / Math.Max(1e-6, maxLat - minLat) * (h - 2 * pad));
         }
+
+        _geoProj = geoProj; _geoReady = true; // bolge odaklama icin sakla
 
         // Zoom + pan (etiketler sabit boyutta kalır, konumlar dönüşür).
         Func<double, double, Point> project = (lat, lon) =>
@@ -251,7 +258,9 @@ public sealed class PipelineMapControl : Control
             var mid = PointAlong(pts, segLen / 2, out var dir);
             var perp = new Vector(-dir.Y, dir.X); if (perp.Y > 0) perp.Negate(); // etiket yukari tarafa
             var lc = new Point(mid.X + perp.X * 16, mid.Y + perp.Y * 16);
-            if (segLen > 150) // kisa segmentte etiket dugum yazilariyla cakisir, atla
+            // Akis etiketi yalniz yakinlasinca ya da uzerine gelince (kalabaligi onle).
+            bool showFlow = (_zoom > 2.2 || _hoverId == seg.Id) && segLen > 90;
+            if (showFlow)
             {
                 var ft = Text($"{snap.FlowMcmDay:0} mcm/g", 10.5, MutedCol, dpi);
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(150, Bg.R, Bg.G, Bg.B)), null,
@@ -270,44 +279,31 @@ public sealed class PipelineMapControl : Control
         }
 
         // --- Düğümler ---
-        // Yogun agda (snapshot: ~90 dugum) her dugume etiket sigmaz; yalnizca
-        // istasyon etiketleri cizilir, digerleri tooltip ile okunur.
-        bool dense = nodes.Count > 30;
+        // Daire boyutu zoom'a bagli: tam gorunumde kucuk, yakinlastikca buyur
+        // (yakin sehir dugumleri ust uste binmesin).
+        double nodeScale = Math.Clamp(0.55 + 0.42 * (_zoom - 1), 0.4, 1.7);
+
+        // Etiket kalabaligini onle: varsayilan olarak yalniz secili/hover; yeterince
+        // yakinlasinca istasyon adlari da gorunur.
+        bool zoomLabels = _zoom > 2.2;
+
         var labelDraws = new List<Action>(); // etiketler tum dairelerden SONRA (ustte kalir)
         foreach (var n in nodes)
         {
             if (IsHidden(n)) continue; // kategori gizli: daire + etiket cizilmez
             var p = _screen[n.Id];
             var snap = _source.Node(n.Id);
-            double r = n.IsStation ? 12 : 8;
+            bool hovered = n.Id == _hoverId && !_hoverSeg;
+            double r = (n.IsStation ? 12 : 8) * nodeScale;
 
-            // Hover: 120ms'de yumusak %18 buyume (render dongusu ~16fps zaten donuyor).
-            if (n.Id == _hoverId && !_hoverSeg)
+            // Hover: 120ms'de yumusak %20 buyume.
+            if (hovered)
             {
                 double ht = Math.Clamp((Environment.TickCount - _hoverStartTick) / 120.0, 0, 1);
-                r *= 1 + 0.18 * (ht * ht * (3 - 2 * ht)); // smoothstep
+                r *= 1 + 0.20 * (ht * ht * (3 - 2 * ht)); // smoothstep
             }
 
-            Brush fill = n.IsStation ? HealthBrush(snap.Health)
-                                     : new SolidColorBrush(NodeTypeColor(n.Type));
-            var halo = ((SolidColorBrush)fill).Color;
-
-            // Kritik istasyon: genis, cok seffaf kirmizi "isi" haresi (uzaktan dikkat ceker).
-            if (n.IsStation && snap.Health < 20)
-                dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(24, 0xE7, 0x4C, 0x3C)), null,
-                    p, r + 26, r + 26);
-
-            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, halo.R, halo.G, halo.B)), null, p, r + 6, r + 6);
-
-            // Kritik istasyon: kirmizi yanip sonen halka (alarm).
-            if (n.IsStation && snap.Health < 20)
-            {
-                double pulse = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 300.0);
-                byte a = (byte)(40 + pulse * 190);
-                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(a, 0xE7, 0x4C, 0x3C)), 3), p, r + 10, r + 10);
-            }
-
-            dc.DrawEllipse(fill, new Pen(new SolidColorBrush(Bg), 2), p, r, r);
+            DrawNodeGlyph(dc, n, p, r, snap, nodeScale);
 
             // Secili istasyon: parlak halka — detay paneliyle gorsel bag.
             if (n.Id == _selectedId)
@@ -316,30 +312,15 @@ public sealed class PipelineMapControl : Control
                 dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(235, TextCol.R, TextCol.G, TextCol.B)), 1.6), p, r + 5, r + 5);
             }
 
-            // Depo: yandan tank doluluk gostergesi.
-            if (n.Type == "STORAGE")
+            // Etiket yalniz: secili, hover, ya da yakinlasinca (istasyonlar).
+            bool showLabel = n.Id == _selectedId || hovered || (zoomLabels && n.IsStation);
+            if (showLabel)
             {
-                double lvl = _source.Level(n.Id);
-                var tank = new Rect(p.X + r + 6, p.Y - 12, 11, 24);
-                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)),
-                    new Pen(new SolidColorBrush(MutedCol), 1), tank);
-                double fh = tank.Height * Math.Clamp(lvl, 0, 100) / 100.0;
-                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x4E, 0xCD, 0xC4)), null,
-                    new Rect(tank.X, tank.Bottom - fh, tank.Width, fh));
-            }
-
-            if (!dense || n.IsStation)
-            {
-                var nc = n; var pc = p; var rc = r; var snapc = snap;
+                var nc = n; var pc = p; var rc = r;
                 labelDraws.Add(() =>
                 {
                     var name = Text(nc.Name, 11.5, TextCol, dpi);
-                    DrawLabel(dc, name, new Point(pc.X - name.Width / 2, pc.Y + rc + 4));
-                    string sub = nc.IsStation ? $"%{snapc.Health:0}  •  RUL {snapc.Rul:0}"
-                               : nc.Type == "STORAGE" ? $"DEPO  %{_source.Level(nc.Id):0}"
-                               : nc.Type;
-                    var subFt = Text(sub, 10, MutedCol, dpi);
-                    DrawLabel(dc, subFt, new Point(pc.X - subFt.Width / 2, pc.Y + rc + 20));
+                    DrawLabel(dc, name, new Point(pc.X - name.Width / 2, pc.Y + rc + 5));
                 });
             }
         }
@@ -348,6 +329,87 @@ public sealed class PipelineMapControl : Control
         foreach (var draw in labelDraws) draw();
 
         DrawTooltip(dc, dpi);
+    }
+
+    // Dugum turune gore ayri gorsel: istasyon=daire, depo=silindir, sinir=elmas,
+    // cikis=asagi ucgen, kavsak/diger=ici bos halka. Boylece tur bir bakista okunur.
+    private void DrawNodeGlyph(DrawingContext dc, PNode n, Point p, double r, NodeSnap snap, double nodeScale)
+    {
+        var bgPen = new Pen(new SolidColorBrush(Bg), Math.Max(1, 2 * nodeScale));
+
+        if (n.IsStation)
+        {
+            Brush fill = HealthBrush(snap.Health);
+            var c = ((SolidColorBrush)fill).Color;
+
+            if (snap.Health < 20) // kritik: genis isi haresi + yanip sonen halka
+            {
+                dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(24, 0xE7, 0x4C, 0x3C)), null, p, r + 26, r + 26);
+                double pulse = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 300.0);
+                byte a = (byte)(40 + pulse * 190);
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(a, 0xE7, 0x4C, 0x3C)), 3), p, r + 10, r + 10);
+            }
+            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, c.R, c.G, c.B)), null, p, r + 6, r + 6);
+            dc.DrawEllipse(fill, bgPen, p, r, r);
+            return;
+        }
+
+        var col = NodeTypeColor(n.Type);
+        var colBrush = new SolidColorBrush(col);
+        dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(55, col.R, col.G, col.B)), null, p, r + 5, r + 5);
+
+        switch (n.Type)
+        {
+            case "STORAGE":
+            {
+                // Silindir (depo): govde + doluluk + ust elips.
+                double rw = r * 1.3, rh = r * 1.7, ry = r * 0.42;
+                var body = new Rect(p.X - rw, p.Y - rh + ry, rw * 2, rh * 2 - ry * 2);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)), null, body);
+                double lvl = Math.Clamp(_source?.Level(n.Id) ?? 0, 0, 100);
+                double fh = body.Height * lvl / 100.0;
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(200, col.R, col.G, col.B)), null,
+                    new Rect(body.X, body.Bottom - fh, body.Width, fh));
+                var pen = new Pen(colBrush, Math.Max(1, 1.6 * nodeScale));
+                dc.DrawRectangle(null, pen, body);
+                dc.DrawEllipse(new SolidColorBrush(col), pen, new Point(p.X, body.Top), rw, ry);
+                break;
+            }
+            case "BORDER":
+            {
+                // Elmas (sinir gecisi).
+                double d = r * 1.25;
+                var g = new StreamGeometry();
+                using (var ctx = g.Open())
+                {
+                    ctx.BeginFigure(new Point(p.X, p.Y - d), true, true);
+                    ctx.LineTo(new Point(p.X + d, p.Y), true, false);
+                    ctx.LineTo(new Point(p.X, p.Y + d), true, false);
+                    ctx.LineTo(new Point(p.X - d, p.Y), true, false);
+                }
+                g.Freeze();
+                dc.DrawGeometry(colBrush, bgPen, g);
+                break;
+            }
+            case "OFFTAKE":
+            {
+                // Asagi ucgen (sehir cikisi: gaz disari).
+                double d = r * 1.15;
+                var g = new StreamGeometry();
+                using (var ctx = g.Open())
+                {
+                    ctx.BeginFigure(new Point(p.X - d, p.Y - d * 0.7), true, true);
+                    ctx.LineTo(new Point(p.X + d, p.Y - d * 0.7), true, false);
+                    ctx.LineTo(new Point(p.X, p.Y + d), true, false);
+                }
+                g.Freeze();
+                dc.DrawGeometry(colBrush, bgPen, g);
+                break;
+            }
+            default: // JUNCTION / LNG / FSRU / TERMINAL: ici bos halka
+                dc.DrawEllipse(new SolidColorBrush(Bg), new Pen(colBrush, Math.Max(1.5, 2.4 * nodeScale)), p, r, r);
+                break;
+        }
     }
 
     private Geometry BuildProvinceGeometry(Func<double, double, Point> project)
@@ -418,33 +480,62 @@ public sealed class PipelineMapControl : Control
             {
                 _hoverId = n.Id; _hoverSeg = false;
                 if (_hoverId != prevHover) _hoverStartTick = Environment.TickCount;
+                Cursor = Cursors.Hand; // tiklanabilir gostergesi
+                InvalidateVisual();
                 return;
             }
         foreach (var s in PipelineTopology.Segments)
             if (_segScreen.TryGetValue(s.Id, out var pts) && DistToPolyline(_mouse, pts) <= 7)
-            { _hoverId = s.Id; _hoverSeg = true; return; }
+            { _hoverId = s.Id; _hoverSeg = true; Cursor = Cursors.Hand; InvalidateVisual(); return; }
+
+        Cursor = Cursors.Arrow; // bos alan
     }
 
-    protected override void OnMouseLeave(MouseEventArgs e) => _hoverId = null;
+    protected override void OnMouseLeave(MouseEventArgs e)
+    {
+        _hoverId = null; Cursor = Cursors.Arrow; InvalidateVisual();
+    }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         double f = e.Delta > 0 ? 1.15 : 1 / 1.15;
-        double nz = Math.Clamp(_zoom * f, 1.0, 6.0);
+        // Alt sinir 0.45: komsu ulkeleri/denizleri gormek icin daha genis uzaklas.
+        double nz = Math.Clamp(_zoom * f, 0.45, 8.0);
         f = nz / _zoom;
         var m = e.GetPosition(this);
         _panX = m.X - (m.X - _panX) * f;   // imlec altindaki nokta sabit kalir
         _panY = m.Y - (m.Y - _panY) * f;
         _zoom = nz;
-        if (_zoom <= 1.0001) { _zoom = 1; _panX = 0; _panY = 0; } // tam sigdir
         InvalidateVisual();
     }
 
     protected override void OnMouseDoubleClick(MouseButtonEventArgs e)
     {
-        _zoom = 1; _panX = 0; _panY = 0; // sifirla
+        _zoom = 1; _panX = 0; _panY = 0; // tam sigdir
         InvalidateVisual();
     }
+
+    /// <summary>Verilen cografi kutuya yumusakca odaklan (bolge izolasyonu).</summary>
+    public void FocusBounds(double minLat, double maxLat, double minLon, double maxLon, double marginFrac = 0.25)
+    {
+        double w = ActualWidth, h = ActualHeight;
+        if (w < 40 || h < 40 || !_geoReady) return;
+
+        // Kutunun tam-gorunum (zoom=1) ekran koordinatlari.
+        var a = GeoAt(maxLat, minLon); var b = GeoAt(minLat, maxLon);
+        double bw = Math.Abs(b.X - a.X), bh = Math.Abs(b.Y - a.Y);
+        if (bw < 1 || bh < 1) return;
+
+        double target = Math.Clamp(Math.Min(w / (bw * (1 + marginFrac)), h / (bh * (1 + marginFrac))), 0.45, 8.0);
+        double cx = (a.X + b.X) / 2, cy = (a.Y + b.Y) / 2;
+        _zoom = target;
+        _panX = w / 2 - cx * target;
+        _panY = h / 2 - cy * target;
+        InvalidateVisual();
+    }
+
+    /// <summary>Tam Turkiye gorunumune don.</summary>
+    public void ResetView() { _zoom = 1; _panX = 0; _panY = 0; InvalidateVisual(); }
 
     /// <summary>Polyline uzerinde bastan itibaren verilen mesafedeki nokta.</summary>
     private static Point PointAlong(Point[] pts, double dist) => PointAlong(pts, dist, out _);
@@ -485,40 +576,82 @@ public sealed class PipelineMapControl : Control
         return (p - (a + ab * t)).Length;
     }
 
+    private static readonly Color AccentCol = Color.FromRgb(0x4E, 0xCD, 0xC4);
+
+    // Yeniden tasarlanan ipucu kutusu: baslik (renkli nokta + ad), altta ayrinti
+    // satirlari; yuvarlak koseli, golgeli, imlecin ustune tasmayan konumda.
     private void DrawTooltip(DrawingContext dc, double dpi)
     {
         if (_hoverId == null || _source == null) return;
-        string text;
+
+        Color dot; string title, sub; string[] rows;
         if (_hoverSeg)
         {
             var s = PipelineTopology.Segments.First(x => x.Id == _hoverId);
             var snap = _source.Segment(s.Id);
-            text = $"{s.Id}   {s.From} → {s.To}\nAkış: {snap.FlowMcmDay:0} mcm/gün"
-                 + (snap.Leak ? "\n⚠ SIZINTI" : "");
+            dot = Lerp(AccentCol, Color.FromRgb(0xFF, 0x6B, 0x6B), snap.LoadRatio);
+            title = s.Id; sub = $"{s.From} → {s.To}";
+            rows = snap.Leak
+                ? new[] { $"Akış: {snap.FlowMcmDay:0} mcm/gün", "⚠ SIZINTI" }
+                : new[] { $"Akış: {snap.FlowMcmDay:0} mcm/gün" };
         }
         else
         {
             var n = PipelineTopology.NodeById(_hoverId);
+            title = n.Name; sub = n.Id;
             if (n.IsStation)
             {
                 var snap = _source.Node(n.Id);
-                string durum = snap.Health >= 70 ? "SAĞLIKLI" : snap.Health >= 40 ? "UYARI"
-                             : snap.Health >= 20 ? "RİSKLİ" : "KRİTİK";
-                text = $"{n.Id}  {n.Name}\n{durum}   %{snap.Health:0}   RUL {snap.Rul:0}";
+                dot = ((SolidColorBrush)HealthBrush(snap.Health)).Color;
+                string durum = snap.Health >= 70 ? "Sağlıklı" : snap.Health >= 40 ? "Uyarı"
+                             : snap.Health >= 20 ? "Riskli" : "Kritik";
+                rows = new[] { $"Durum: {durum}   %{snap.Health:0}", $"RUL: {snap.Rul:0} döngü" };
             }
             else if (n.Type == "STORAGE")
-                text = $"{n.Id}  {n.Name}\nDepo doluluk: %{_source.Level(n.Id):0}";
+            { dot = NodeTypeColor(n.Type); rows = new[] { $"Depo doluluk: %{_source.Level(n.Id):0}" }; }
             else
-                text = $"{n.Id}  {n.Name}\n{n.Type}";
+            { dot = NodeTypeColor(n.Type); rows = new[] { TypeLabel(n.Type) }; }
         }
 
-        var ft = Text(text, 11.5, TextCol, dpi);
-        double pad = 8, w = ft.Width + 2 * pad, h = ft.Height + 2 * pad;
-        double x = Math.Min(_mouse.X + 14, ActualWidth - w - 4);
-        double y = Math.Min(_mouse.Y + 14, ActualHeight - h - 4);
+        var titleFt = Text(title, 12.5, TextCol, dpi); titleFt.SetFontWeight(FontWeights.SemiBold);
+        var subFt = Text(sub, 10, MutedCol, dpi);
+        var rowFts = rows.Select(r => Text(r, 11, r.StartsWith("⚠") ? Color.FromRgb(0xE7, 0x4C, 0x3C) : MutedCol, dpi)).ToList();
+
+        double pad = 10, dotW = 14, gap = 4;
+        double contentW = Math.Max(dotW + titleFt.Width, subFt.Width);
+        foreach (var rf in rowFts) contentW = Math.Max(contentW, rf.Width);
+        double w = contentW + 2 * pad;
+        double h = pad + titleFt.Height + gap + subFt.Height + 6 + rowFts.Sum(r => r.Height + 2) + pad;
+
+        double x = _mouse.X + 16, y = _mouse.Y + 16;
+        if (x + w > ActualWidth - 4) x = _mouse.X - w - 16;
+        if (y + h > ActualHeight - 4) y = ActualHeight - h - 4;
         var rect = new Rect(x, y, w, h);
-        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x1A, 0x26, 0x34)),
-            new Pen(new SolidColorBrush(Province), 1), rect);
-        dc.DrawText(ft, new Point(x + pad, y + pad));
+
+        // Golge + govde (yuvarlak kose).
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(70, 0, 0, 0)), null,
+            new Rect(x + 2, y + 3, w, h), 8, 8);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(0x1B, 0x28, 0x38)),
+            new Pen(new SolidColorBrush(Color.FromRgb(0x36, 0x45, 0x55)), 1), rect, 8, 8);
+
+        double cy = y + pad;
+        dc.DrawEllipse(new SolidColorBrush(dot), null, new Point(x + pad + 5, cy + titleFt.Height / 2), 5, 5);
+        dc.DrawText(titleFt, new Point(x + pad + dotW, cy));
+        cy += titleFt.Height + gap;
+        dc.DrawText(subFt, new Point(x + pad, cy));
+        cy += subFt.Height + 6;
+        foreach (var rf in rowFts) { dc.DrawText(rf, new Point(x + pad, cy)); cy += rf.Height + 2; }
     }
+
+    private static string TypeLabel(string type) => type switch
+    {
+        "BORDER" => "Sınır İstasyonu",
+        "OFFTAKE" => "Şehir Gaz Çıkışı",
+        "JUNCTION" => "Dağıtım Kavşağı",
+        "STORAGE" => "Yeraltı Depolama",
+        "LNG" => "LNG Terminali",
+        "FSRU" => "FSRU",
+        "TERMINAL" => "Geçiş İstasyonu",
+        _ => type,
+    };
 }

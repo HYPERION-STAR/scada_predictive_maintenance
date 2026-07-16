@@ -12,7 +12,16 @@
             <Color x:Key="CardColor">#1E2C3D</Color>
             <Color x:Key="StrokeColor">#2E4258</Color>
             <Color x:Key="TextColor">#E6EEF6</Color>
-            <Color x:Key="MutedColor">#8CA3B8</Color>
+            <!-- Kucuk metinlerde kontrast icin hafif acildi (eski #8CA3B8) -->
+            <Color x:Key="MutedColor">#9AAFC4</Color>
+
+            <!-- Saglik durumu renkleri (yalnizca durum anlami tasir) -->
+            <Color x:Key="HealthyColor">#2ECC71</Color>
+            <Color x:Key="WarnColor">#F1C40F</Color>
+            <Color x:Key="RiskColor">#E67E22</Color>
+            <Color x:Key="CriticalColor">#E74C3C</Color>
+            <!-- Marka vurgusu: notr etiketler icin (saglik anlami tasimaz) -->
+            <Color x:Key="AccentColor">#4ECDC4</Color>
 
             <SolidColorBrush x:Key="BgBrush"     Color="{StaticResource BgColor}"/>
             <SolidColorBrush x:Key="PanelBrush"  Color="{StaticResource PanelColor}"/>
@@ -21,16 +30,31 @@
             <SolidColorBrush x:Key="TextBrush"   Color="{StaticResource TextColor}"/>
             <SolidColorBrush x:Key="MutedBrush"  Color="{StaticResource MutedColor}"/>
             <SolidColorBrush x:Key="TrackBrush"  Color="#12202E"/>
+            <SolidColorBrush x:Key="HealthyBrush"  Color="{StaticResource HealthyColor}"/>
+            <SolidColorBrush x:Key="WarnBrush"     Color="{StaticResource WarnColor}"/>
+            <SolidColorBrush x:Key="RiskBrush"     Color="{StaticResource RiskColor}"/>
+            <SolidColorBrush x:Key="CriticalBrush" Color="{StaticResource CriticalColor}"/>
+            <SolidColorBrush x:Key="AccentBrush"   Color="{StaticResource AccentColor}"/>
 
             <SolidColorBrush x:Key="TempBrush" Color="#FF6B6B"/>
             <SolidColorBrush x:Key="PresBrush" Color="#4ECDC4"/>
             <SolidColorBrush x:Key="VibBrush"  Color="#FFD166"/>
 
+            <!-- Kart golgesi (yumusak yukselti) -->
+            <DropShadowEffect x:Key="CardShadow" BlurRadius="18" ShadowDepth="3"
+                              Direction="270" Opacity="0.35" Color="#000000"/>
+
             <!-- Donusturucular -->
             <local:SeverityToBrushConverter x:Key="SeverityToBrush"/>
             <local:MachineIdToBrushConverter x:Key="MachineIdToBrush"/>
             <local:PercentConverter x:Key="Percent"/>
+            <local:TintBrushConverter x:Key="Tint"/>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+            <!-- Sayisal degerler: tablo rakamlari (guncellemede yatay titreme olmaz) -->
+            <Style x:Key="NumText" TargetType="TextBlock">
+                <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
+            </Style>
 
             <!-- Saglik cubugu (0-100) -->
             <Style x:Key="HealthBar" TargetType="ProgressBar">

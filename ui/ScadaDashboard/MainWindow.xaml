@@ -29,7 +29,7 @@
                                Foreground="{StaticResource TextBrush}"/>
                     <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
                         <Run Text="Yapay zeka destekli makine sağlığı izleme"/>
-                        <Run Text="  •  Veri kaynağı: " Foreground="#F1C40F"/><Run Text="{Binding SourceLabel, Mode=OneWay}" Foreground="#F1C40F"/>
+                        <Run Text="  •  Veri kaynağı: " Foreground="{StaticResource AccentBrush}"/><Run Text="{Binding SourceLabel, Mode=OneWay}" Foreground="{StaticResource AccentBrush}"/>
                     </TextBlock>
                 </StackPanel>
 
@@ -40,6 +40,7 @@
                         <StackPanel>
                             <TextBlock Text="TOPLAM" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
                             <TextBlock Text="{Binding TotalCount}" FontSize="18" FontWeight="Bold"
+                                       Style="{StaticResource NumText}"
                                        Foreground="{StaticResource TextBrush}"/>
                         </StackPanel>
                     </Border>
@@ -47,24 +48,28 @@
                             BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="SAĞLIKLI" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
-                            <TextBlock Text="{Binding HealthyCount}" FontSize="18" FontWeight="Bold" Foreground="#2ECC71"/>
+                            <TextBlock Text="{Binding HealthyCount}" FontSize="18" FontWeight="Bold"
+                                       Style="{StaticResource NumText}" Foreground="{StaticResource HealthyBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
                             BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="UYARI/RİSK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
-                            <TextBlock Text="{Binding WarningCount}" FontSize="18" FontWeight="Bold" Foreground="#F1C40F"/>
+                            <TextBlock Text="{Binding WarningCount}" FontSize="18" FontWeight="Bold"
+                                       Style="{StaticResource NumText}" Foreground="{StaticResource WarnBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
                             BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="KRİTİK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
-                            <TextBlock Text="{Binding CriticalCount}" FontSize="18" FontWeight="Bold" Foreground="#E74C3C"/>
+                            <TextBlock Text="{Binding CriticalCount}" FontSize="18" FontWeight="Bold"
+                                       Style="{StaticResource NumText}" Foreground="{StaticResource CriticalBrush}"/>
                         </StackPanel>
                     </Border>
                     <TextBlock Text="{Binding Clock}" VerticalAlignment="Center" Margin="16,0,0,0"
+                               Style="{StaticResource NumText}"
                                FontSize="13" Foreground="{StaticResource MutedBrush}"/>
                 </StackPanel>
             </Grid>
@@ -90,7 +95,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Width="300" Margin="5" Padding="20"
-                                    Background="{StaticResource CardBrush}" CornerRadius="19"
+                                    Background="{StaticResource CardBrush}" CornerRadius="16"
                                     BorderBrush="{Binding StatusBrush}" BorderThickness="1.5">
                                 <StackPanel>
                                     <!-- Baslik satiri -->
@@ -109,10 +114,12 @@
                                             <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"
                                                        Foreground="{StaticResource TextBrush}"/>
                                         </StackPanel>
+                                        <!-- Durum rozeti: soluk zemin + renkli yazi (hap bicimi) -->
                                         <Border Grid.Column="1" VerticalAlignment="Top"
-                                                Background="{Binding StatusBrush}" CornerRadius="0" Padding="10,4">
+                                                Background="{Binding StatusBrush, Converter={StaticResource Tint}}"
+                                                CornerRadius="10" Padding="10,4">
                                             <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="Bold"
-                                                       Foreground="#0F1620"/>
+                                                       Foreground="{Binding StatusBrush}"/>
                                         </Border>
                                     </Grid>
 
@@ -125,6 +132,7 @@
                                         <TextBlock Grid.Column="0" Text="SAĞLIK DURUMU" FontSize="11"
                                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Bottom"/>
                                         <TextBlock Grid.Column="1" FontSize="19" FontWeight="Bold"
+                                                   Style="{StaticResource NumText}"
                                                    Foreground="{Binding StatusBrush}"
                                                    Text="{Binding HealthScore, Converter={StaticResource Percent}}"/>
                                     </Grid>
@@ -141,12 +149,14 @@
                                             <TextBlock Text="KALAN ÖMÜR (RUL)" FontSize="10"
                                                        Foreground="{StaticResource MutedBrush}"/>
                                             <TextBlock FontSize="15" Foreground="{StaticResource TextBrush}"
+                                                       Style="{StaticResource NumText}"
                                                        Text="{Binding Rul, StringFormat={}{0:0} döngü}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1">
                                             <TextBlock Text="ANOMALİ OLASILIĞI" FontSize="10"
                                                        Foreground="{StaticResource MutedBrush}"/>
                                             <TextBlock FontSize="15" Foreground="{StaticResource TextBrush}"
+                                                       Style="{StaticResource NumText}"
                                                        Text="{Binding AnomalyProbability, StringFormat={}{0:P0}}"/>
                                         </StackPanel>
                                     </Grid>
@@ -157,6 +167,7 @@
                                         <Grid Margin="0,0,0,2">
                                             <TextBlock Text="Sıcaklık" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TempBrush}"
+                                                       Style="{StaticResource NumText}"
                                                        Text="{Binding Temperature, StringFormat={}{0:0.0} °C}"/>
                                         </Grid>
                                         <c:MiniChart Height="52" Background="{StaticResource TrackBrush}"
@@ -167,6 +178,7 @@
                                         <Grid Margin="0,8,0,2">
                                             <TextBlock Text="Basınç" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource PresBrush}"
+                                                       Style="{StaticResource NumText}"
                                                        Text="{Binding Pressure, StringFormat={}{0:0.00} bar}"/>
                                         </Grid>
                                         <c:MiniChart Height="52" Background="{StaticResource TrackBrush}"
@@ -177,6 +189,7 @@
                                         <Grid Margin="0,8,0,2">
                                             <TextBlock Text="Titreşim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource VibBrush}"
+                                                       Style="{StaticResource NumText}"
                                                        Text="{Binding Vibration, StringFormat={}{0:0.00} mm/s}"/>
                                         </Grid>
                                         <c:MiniChart Height="52" Background="{StaticResource TrackBrush}"

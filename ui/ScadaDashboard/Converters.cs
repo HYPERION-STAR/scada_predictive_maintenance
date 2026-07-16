@@ -68,6 +68,27 @@ public sealed class MachineIdToBrushConverter : IValueConverter
     }
 }
 
+/// <summary>
+/// Durum rengini soluk zemin tonuna cevirir (~%18 opaklik).
+/// Durum rozeti: zemin = soluk ton, yazi = rengin kendisi.
+/// </summary>
+public sealed class TintBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is SolidColorBrush b)
+        {
+            var t = new SolidColorBrush(Color.FromArgb(0x2E, b.Color.R, b.Color.G, b.Color.B));
+            t.Freeze();
+            return t;
+        }
+        return Brushes.Transparent;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>Sayiyi "%73" gibi bicimler (kultur bagimsiz).</summary>
 public sealed class PercentConverter : IValueConverter
 {

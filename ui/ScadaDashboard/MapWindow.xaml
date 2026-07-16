@@ -25,7 +25,7 @@
                                Foreground="{StaticResource TextBrush}"/>
                     <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
                         <Run Text="Ağ sağlığı ve akış izleme"/>
-                        <Run x:Name="SourceLabel" Text="  •  Veri kaynağı: SİMÜLASYON" Foreground="#F1C40F"/>
+                        <Run x:Name="SourceLabel" Text="  •  Veri kaynağı: SİMÜLASYON" Foreground="{StaticResource AccentBrush}"/>
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -37,7 +37,8 @@
                             Visibility="Collapsed">
                         <TextBlock x:Name="AlarmText" FontSize="12" FontWeight="Bold" Foreground="#0F1620"/>
                     </Border>
-                    <TextBlock x:Name="Clock" FontSize="13" Foreground="{StaticResource MutedBrush}"/>
+                    <TextBlock x:Name="Clock" FontSize="13" Style="{StaticResource NumText}"
+                               Foreground="{StaticResource MutedBrush}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -73,11 +74,13 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="KALAN ÖMÜR (RUL)" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
-                            <TextBlock x:Name="DetailRul" FontSize="15" Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock x:Name="DetailRul" FontSize="15" Style="{StaticResource NumText}"
+                                       Foreground="{StaticResource TextBrush}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="SAĞLIK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
-                            <TextBlock x:Name="DetailHealth" FontSize="15" Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock x:Name="DetailHealth" FontSize="15" Style="{StaticResource NumText}"
+                                       Foreground="{StaticResource TextBrush}"/>
                         </StackPanel>
                     </Grid>
 
@@ -88,19 +91,22 @@
 
                     <Grid Margin="0,16,0,2">
                         <TextBlock Text="Titreşim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
-                        <TextBlock x:Name="VibVal" HorizontalAlignment="Right" FontSize="12" Foreground="#FFD166"/>
+                        <TextBlock x:Name="VibVal" HorizontalAlignment="Right" FontSize="12"
+                                   Style="{StaticResource NumText}" Foreground="#FFD166"/>
                     </Grid>
                     <c:MiniChart x:Name="VibChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#FFD166"/>
 
                     <Grid Margin="0,10,0,2">
                         <TextBlock Text="Yatak Sıcaklığı" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
-                        <TextBlock x:Name="BtVal" HorizontalAlignment="Right" FontSize="12" Foreground="#FF6B6B"/>
+                        <TextBlock x:Name="BtVal" HorizontalAlignment="Right" FontSize="12"
+                                   Style="{StaticResource NumText}" Foreground="#FF6B6B"/>
                     </Grid>
                     <c:MiniChart x:Name="BtChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#FF6B6B"/>
 
                     <Grid Margin="0,10,0,2">
                         <TextBlock Text="Basma Basıncı" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
-                        <TextBlock x:Name="DpVal" HorizontalAlignment="Right" FontSize="12" Foreground="#4ECDC4"/>
+                        <TextBlock x:Name="DpVal" HorizontalAlignment="Right" FontSize="12"
+                                   Style="{StaticResource NumText}" Foreground="#4ECDC4"/>
                     </Grid>
                     <c:MiniChart x:Name="DpChart" Height="46" Background="{StaticResource TrackBrush}" LineBrush="#4ECDC4"/>
 
@@ -114,6 +120,7 @@
                                     <TextBlock Text="{Binding Name}" FontSize="11"
                                                Foreground="{StaticResource MutedBrush}"/>
                                     <TextBlock Text="{Binding Value}" FontSize="11" HorizontalAlignment="Right"
+                                               Style="{StaticResource NumText}"
                                                Foreground="{StaticResource TextBrush}"/>
                                 </Grid>
                             </DataTemplate>

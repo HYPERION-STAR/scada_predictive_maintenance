@@ -19,7 +19,7 @@ public sealed class PipelineMapControl : Control
     private static readonly Color Land = Color.FromRgb(0x18, 0x24, 0x32);     // kara dolgusu
     private static readonly Color Province = Color.FromRgb(0x33, 0x47, 0x5C); // il sınırı
     private static readonly Color TextCol = Color.FromRgb(0xE6, 0xEE, 0xF6);
-    private static readonly Color MutedCol = Color.FromRgb(0x8C, 0xA3, 0xB8);
+    private static readonly Color MutedCol = Color.FromRgb(0x9A, 0xAF, 0xC4); // App.xaml MutedColor ile ayni
 
     private IPipelineSource? _source;
     public IPipelineSource? Source

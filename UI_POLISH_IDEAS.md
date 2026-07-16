@@ -10,6 +10,45 @@ Tags: **[QW]** quick win (minutes), **[M]** medium (an hour or two), **[B]** big
 
 ---
 
+## STATUS — implemented 2026-07-16 (commits `875d1be`…`fe2c5f8`)
+
+**✅ Done (verified in the running app):**
+- §0 all: radius scale (card 16, badge pill), teal accent for "Veri kaynağı",
+  Healthy/Warn/Risk/Critical/Accent brushes in App.xaml (XAML hexes bound; map
+  control keeps matching C# constants)
+- §1 tabular figures everywhere live numbers render (`NumText` style)
+- §2 window bg gradient (machine panel) + map base desaturation
+- §3 selection ring, 120ms eased hover grow, critical heat bloom, direction
+  chevrons on flows, rounded line caps, labels drawn above all circles
+- §4 card shadow + hover lift, health-bar sheen gradient, status pill
+  (tinted bg + colored text via `TintBrushConverter`)
+- §5 area fill + last-point dot (pre-existing) + new dot halo
+- §6 grouped sensor list (BASINÇ/SICAKLIK/TİTREŞİM & MEKANİK/AKIŞ & PERFORMANS),
+  hairline separators, out-of-band value coloring (vib ISO-ish 4.5/7.1,
+  bearing 80/95 °C, lube oil 60/75 °C), tabular values
+- §7 Win11 dark title bar + rounded corners (`WindowFx`, all windows), 200ms
+  window fade-in, detail panel 180ms slide-in, GhostButton 100ms hover transition
+- §8 MDL2 glyphs on Makine Paneli / Ayarlar / panel close
+- §9 muted text contrast raised (#8CA3B8 → #9AAFC4, both XAML and map control)
+
+**⏳ Deliberately deferred (with reasons):**
+- §1 letter-spacing — WPF TextBlock has no CharacterSpacing; needs per-glyph
+  hackery, not worth it
+- §1 display font — header is already Segoe UI Bold; a new face is a design call
+- §2 light theme — large scope, listed as nice-to-have; do as its own task
+- §3 zoom-to-region on double-click — conflicts with existing double-click =
+  reset-zoom gesture; needs a gesture decision first
+- §4 sensor row icons — Segoe MDL2 has no good thermometer/gauge/vibration
+  glyphs; needs custom vector assets
+- §5 threshold line in MiniChart — needs per-sensor nominal-band plumbing into
+  the control (do together with DB predictions work)
+- §7 value-change flash — needs per-value previous-state tracking; marginal payoff
+- §8 empty states — settings dialog already reports a missing snapshot and the
+  map always falls back to the simulator, so there is no truly empty screen today
+- §9 colorblind shape coding — needs a deliberate glyph language decision
+
+---
+
 ## 0. Consistency cleanups (do these first — cheap, high payoff)
 
 - **[QW] Unify corner radius.** Machine cards use `CornerRadius="19"`, the status

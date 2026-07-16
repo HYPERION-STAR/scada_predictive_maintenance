@@ -30,6 +30,20 @@ public sealed class PipelineMapControl : Control
 
     public event Action<PNode>? NodeClicked;
 
+    /// <summary>
+    /// Gizlenen dugum kategorileri: "CS", "BORDER", "OFFTAKE", "STORAGE",
+    /// "OTHER" (kavsak/LNG/FSRU/terminal). Alt bar onay kutulari doldurur.
+    /// Segmentler cizilmeye devam eder; yalnizca daire + etiket gizlenir.
+    /// </summary>
+    public HashSet<string> HiddenCategories { get; } = new();
+
+    private bool IsHidden(PNode n) => HiddenCategories.Contains(CategoryOf(n));
+
+    private static string CategoryOf(PNode n) =>
+        n.IsStation || n.Type == "CS" ? "CS"
+        : n.Type is "BORDER" or "OFFTAKE" or "STORAGE" ? n.Type
+        : "OTHER";
+
     private readonly Dictionary<string, Point> _screen = new();
     // Segment ekran noktalari (polyline guzergah; hover mesafesi icin cache).
     private readonly Dictionary<string, Point[]> _segScreen = new();
@@ -237,6 +251,7 @@ public sealed class PipelineMapControl : Control
         bool dense = nodes.Count > 30;
         foreach (var n in nodes)
         {
+            if (IsHidden(n)) continue; // kategori gizli: daire + etiket cizilmez
             var p = _screen[n.Id];
             var snap = _source.Node(n.Id);
             double r = n.IsStation ? 12 : 8;
@@ -328,7 +343,7 @@ public sealed class PipelineMapControl : Control
         if (_moved) return; // sürüklemeyse tıklama sayma
         var click = e.GetPosition(this);
         foreach (var n in PipelineTopology.Nodes)
-            if (_screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
+            if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
             { NodeClicked?.Invoke(n); break; }
     }
 
@@ -346,7 +361,7 @@ public sealed class PipelineMapControl : Control
         }
         _hoverId = null;
         foreach (var n in PipelineTopology.Nodes)
-            if (_screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
+            if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
             { _hoverId = n.Id; _hoverSeg = false; return; }
         foreach (var s in PipelineTopology.Segments)
             if (_segScreen.TryGetValue(s.Id, out var pts) && DistToPolyline(_mouse, pts) <= 7)

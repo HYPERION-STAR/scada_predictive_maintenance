@@ -147,6 +147,16 @@ public partial class MapWindow : Window
         }
     }
 
+    // Alt bardaki kategori onay kutusu: isaret kalkinca o tur haritada gizlenir.
+    private void CategoryToggle(object sender, RoutedEventArgs e)
+    {
+        if (Map == null) return; // XAML parse sirasinda erken tetiklenme
+        if (sender is not System.Windows.Controls.CheckBox cb || cb.Tag is not string cat) return;
+        if (cb.IsChecked == true) Map.HiddenCategories.Remove(cat);
+        else Map.HiddenCategories.Add(cat);
+        Map.InvalidateVisual();
+    }
+
     // Genel makine panelini ac (5 jenerik makine).
     private void OpenDashboard_Click(object sender, RoutedEventArgs e) => new MainWindow().Show();
 

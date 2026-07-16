@@ -129,8 +129,11 @@
                 BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="İstasyon:" FontSize="11" Foreground="{StaticResource MutedBrush}"
-                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <!-- Kategori onay kutulari: isaret kaldirilinca o tur haritada gizlenir -->
+                    <CheckBox Tag="CS" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
+                              VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="İstasyonları göster/gizle">
+                        <TextBlock Text="İstasyon:" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                    </CheckBox>
                     <Ellipse Width="10" Height="10" Fill="#2ECC71" Margin="0,0,4,0"/>
                     <TextBlock Text="Sağlıklı" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <Ellipse Width="10" Height="10" Fill="#F1C40F" Margin="0,0,4,0"/>
@@ -142,12 +145,34 @@
 
                     <TextBlock Text="Düğüm:" FontSize="11" Foreground="{StaticResource MutedBrush}"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <Ellipse Width="10" Height="10" Fill="#4E9BF5" Margin="0,0,4,0"/>
-                    <TextBlock Text="Sınır" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                    <Ellipse Width="10" Height="10" Fill="#C58AF5" Margin="0,0,4,0"/>
-                    <TextBlock Text="Çıkış" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                    <Ellipse Width="10" Height="10" Fill="#4ECDC4" Margin="0,0,4,0"/>
-                    <TextBlock Text="Depo" FontSize="11" Foreground="{StaticResource TextBrush}" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                    <CheckBox Tag="BORDER" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
+                              VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Sınır düğümlerini göster/gizle">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="#4E9BF5" Margin="0,0,4,0"/>
+                            <TextBlock Text="Sınır" FontSize="11" Foreground="{StaticResource TextBrush}"/>
+                        </StackPanel>
+                    </CheckBox>
+                    <CheckBox Tag="OFFTAKE" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
+                              VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Çıkış düğümlerini göster/gizle">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="#C58AF5" Margin="0,0,4,0"/>
+                            <TextBlock Text="Çıkış" FontSize="11" Foreground="{StaticResource TextBrush}"/>
+                        </StackPanel>
+                    </CheckBox>
+                    <CheckBox Tag="STORAGE" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
+                              VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Depoları göster/gizle">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="#4ECDC4" Margin="0,0,4,0"/>
+                            <TextBlock Text="Depo" FontSize="11" Foreground="{StaticResource TextBrush}"/>
+                        </StackPanel>
+                    </CheckBox>
+                    <CheckBox Tag="OTHER" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
+                              VerticalAlignment="Center" Margin="0,0,20,0" ToolTip="Kavşak / LNG / FSRU / terminal düğümlerini göster/gizle">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="#8CA3B8" Margin="0,0,4,0"/>
+                            <TextBlock Text="Diğer" FontSize="11" Foreground="{StaticResource TextBrush}"/>
+                        </StackPanel>
+                    </CheckBox>
 
                     <TextBlock Text="Akış: düşük" FontSize="11" Foreground="#4ECDC4" VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <TextBlock Text="—&gt;" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>

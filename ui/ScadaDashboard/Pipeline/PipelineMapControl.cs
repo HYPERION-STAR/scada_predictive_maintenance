@@ -129,10 +129,32 @@ public sealed class PipelineMapControl : Control
         set { _selectedId = value; InvalidateVisual(); }
     }
 
-    // Provins + komsu geometrisi cache (boyut/zoom/pan degisince yeniden kurulur).
+    // Provins + deniz geometrisi cache (boyut/zoom/pan degisince yeniden kurulur).
     private Geometry? _provGeo;
-    private Geometry? _neighGeo;
+    private Geometry? _seaGeo;
     private double _pkW, _pkH, _pkZoom = 1, _pkPanX, _pkPanY;
+
+    // Deniz alanlari (lat/lon [lon,lat] halkalari): kara zemininden "su" oyar.
+    // Turkiye ustte cizildiginden fazla tasan kenarlar Turkiye altinda kalir;
+    // komsu-tarafi duz kenarlar sadelestirilmis kiyi cizgisi olur.
+    private static readonly double[][][] SeaPolys =
+    {
+        new[]{ new[]{27.6,41.3}, new[]{42.6,41.3}, new[]{42.6,50.0}, new[]{27.6,50.0} }, // Karadeniz
+        new[]{ new[]{23.2,32.5}, new[]{27.3,32.5}, new[]{27.3,40.8}, new[]{23.2,40.8} }, // Ege
+        new[]{ new[]{25.8,23.0}, new[]{37.3,23.0}, new[]{37.3,36.5}, new[]{25.8,36.5} }, // Akdeniz
+        new[]{ new[]{26.3,40.1}, new[]{29.9,40.1}, new[]{29.9,41.5}, new[]{26.3,41.5} }, // Marmara
+    };
+
+    // Turkiye sinirindan disari giden komsu sinir cizgileri (lat/lon [lon,lat] ciftleri).
+    private static readonly double[][][] DividerLines =
+    {
+        new[]{ new[]{26.6,41.9}, new[]{24.6,43.8} }, // Bulgaristan | Yunanistan (KB)
+        new[]{ new[]{43.5,41.2}, new[]{45.8,42.7} }, // Gurcistan | Ermenistan (KD)
+        new[]{ new[]{44.6,39.5}, new[]{47.4,39.0} }, // Ermenistan | Iran (D)
+        new[]{ new[]{44.4,37.6}, new[]{47.2,36.2} }, // Iran | Irak (GD)
+        new[]{ new[]{42.3,37.1}, new[]{41.2,34.2} }, // Irak | Suriye (G)
+        new[]{ new[]{36.6,36.5}, new[]{36.9,33.8} }, // Suriye guney (G)
+    };
 
     // Taban projeksiyonu (zoom/pan'siz); bolge odaklama hesabi icin saklanir.
     private Func<double, double, Point>? _geoProj;
@@ -198,7 +220,8 @@ public sealed class PipelineMapControl : Control
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight;
-        dc.DrawRectangle(new SolidColorBrush(Sea), null, new Rect(0, 0, w, h)); // deniz zemini
+        // Zemin = kara (Turkiye disi her yer); denizler ustte oyulur.
+        dc.DrawRectangle(new SolidColorBrush(NeighLand), null, new Rect(0, 0, w, h));
         if (_source == null || w < 40 || h < 40) return;
 
         EnsureBbox();
@@ -244,16 +267,23 @@ public sealed class PipelineMapControl : Control
                 || _pkZoom != _zoom || _pkPanX != _panX || _pkPanY != _panY)
             {
                 _provGeo = BuildRingGeometry(TurkeyMap.Provinces.SelectMany(p => p.Rings), project);
-                _neighGeo = BuildRingGeometry(NeighborMap.Countries.SelectMany(c => c.Rings), project);
+                _seaGeo = BuildRingGeometry(SeaPolys, project);
                 _pkW = w; _pkH = h; _pkZoom = _zoom; _pkPanX = _panX; _pkPanY = _panY;
             }
-            // Once komsu ulkeler (daha koyu, altta) -> aradaki bosluk = deniz.
-            // Kiyi/sinir cizgisi katman kapali olsa da hafif kalir (deniz sinirlari).
-            if (_neighGeo != null)
-                dc.DrawGeometry(new SolidColorBrush(NeighLand),
-                    new Pen(new SolidColorBrush(_showProvinces ? NeighEdge
-                        : Color.FromArgb(120, NeighEdge.R, NeighEdge.G, NeighEdge.B)), 1.0), _neighGeo);
-            // Sonra Turkiye (daha acik) ustte -> belirgin durur.
+
+            // Denizler: kara zemininden su (mavi) oyar -> kiyilar belirir.
+            if (_seaGeo != null)
+                dc.DrawGeometry(new SolidColorBrush(Sea), null, _seaGeo);
+
+            // Komsu sinir cizgileri: Turkiye'den disari giden duz cizgiler.
+            if (_showProvinces)
+            {
+                var divPen = new Pen(new SolidColorBrush(NeighEdge), 1.1);
+                foreach (var d in DividerLines)
+                    dc.DrawLine(divPen, project(d[0][1], d[0][0]), project(d[1][1], d[1][0]));
+            }
+
+            // Turkiye (daha acik) ustte -> belirgin durur, denizin fazlasini kapatir.
             dc.DrawGeometry(new SolidColorBrush(Land),
                             _showProvinces ? new Pen(new SolidColorBrush(Province), 0.7) : null, _provGeo);
         }

@@ -30,22 +30,26 @@ Tags: **[QW]** quick win (minutes), **[M]** medium (an hour or two), **[B]** big
   window fade-in, detail panel 180ms slide-in, GhostButton 100ms hover transition
 - §8 MDL2 glyphs on Makine Paneli / Ayarlar / panel close
 - §9 muted text contrast raised (#8CA3B8 → #9AAFC4, both XAML and map control)
+- §3 zoom-to-region — done via the map's region-isolation chip bar (Marmara/Ege/…
+  buttons ease-zoom to a region); double-click still resets, both gestures coexist
+- §4 sensor-row indicators — small color dots (TempBrush/PresBrush/VibBrush) before
+  Sıcaklık/Basınç/Titreşim on the machine cards (color-dot take instead of glyphs)
 
-**⏳ Deliberately deferred (with reasons):**
-- §1 letter-spacing — WPF TextBlock has no CharacterSpacing; needs per-glyph
-  hackery, not worth it
-- §1 display font — header is already Segoe UI Bold; a new face is a design call
-- §2 light theme — large scope, listed as nice-to-have; do as its own task
-- §3 zoom-to-region on double-click — conflicts with existing double-click =
-  reset-zoom gesture; needs a gesture decision first
-- §4 sensor row icons — Segoe MDL2 has no good thermometer/gauge/vibration
-  glyphs; needs custom vector assets
-- §5 threshold line in MiniChart — needs per-sensor nominal-band plumbing into
-  the control (do together with DB predictions work)
-- §7 value-change flash — needs per-value previous-state tracking; marginal payoff
-- §8 empty states — settings dialog already reports a missing snapshot and the
-  map always falls back to the simulator, so there is no truly empty screen today
-- §9 colorblind shape coding — needs a deliberate glyph language decision
+**⏳ Deferred — genuinely blocked, not skipped (with reasons):**
+- §2 light theme — the map control is tuned entirely for a dark base (hardcoded
+  flow gradients, health colors, sea/land shades chosen for #0F1620); a light
+  variant is a self-contained project that would regress quality if rushed. Do as
+  its own task. **This is the one remaining "work, not a blocker" item.**
+- §5 threshold line in MiniChart — needs per-sensor nominal bands, which come with
+  Kişi 4's DB `predictions`; no threshold data exists yet to draw
+- §9 colorblind coding — node *types* are now shape-coded (circle/cylinder/diamond/
+  triangle/ring from the map work), so only health *states* remain color-only;
+  a full shape/letter language for states needs a design decision
+- §1 letter-spacing — WPF TextBlock genuinely has no CharacterSpacing/tracking API
+- §1 display font — a new typeface is a brand/design call, not a code task
+- §7 value-change flash — marginal payoff; needs per-value previous-state tracking
+- §8 empty states — no truly empty screen exists (settings reports a missing
+  snapshot; the map always falls back to the simulator)
 
 ---
 

@@ -200,7 +200,10 @@
                                     <StackPanel Margin="0,14,0,0">
                                         <!-- Sicaklik -->
                                         <Grid Margin="0,0,0,2">
-                                            <TextBlock Text="Sıcaklık" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="7" Height="7" Fill="{StaticResource TempBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Sıcaklık" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            </StackPanel>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TempBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Temperature, StringFormat={}{0:0.0} °C}"/>
@@ -211,7 +214,10 @@
 
                                         <!-- Basinc -->
                                         <Grid Margin="0,8,0,2">
-                                            <TextBlock Text="Basınç" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="7" Height="7" Fill="{StaticResource PresBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Basınç" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            </StackPanel>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource PresBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Pressure, StringFormat={}{0:0.00} bar}"/>
@@ -222,7 +228,10 @@
 
                                         <!-- Titresim -->
                                         <Grid Margin="0,8,0,2">
-                                            <TextBlock Text="Titreşim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="7" Height="7" Fill="{StaticResource VibBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Titreşim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                            </StackPanel>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource VibBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Vibration, StringFormat={}{0:0.00} mm/s}"/>

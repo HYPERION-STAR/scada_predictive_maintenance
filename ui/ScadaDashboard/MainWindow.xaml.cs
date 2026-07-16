@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowFx.Apply(this);
 
         // Veri kaynagi + uyari servisi kuruldu.
         // Ileride: new SimulatorDataSource() -> new MqttDataSource(...) ile degistirilecek.
@@ -26,6 +27,7 @@ public partial class MainWindow : Window
     public MainWindow(IDataSource source, string title)
     {
         InitializeComponent();
+        WindowFx.Apply(this);
         Title = title;
         DataContext = new MainViewModel(source, new AlertService(), SourceLabelFor(source));
     }

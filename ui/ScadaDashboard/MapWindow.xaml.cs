@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using ScadaDashboard.Pipeline;
 
@@ -24,6 +25,7 @@ public partial class MapWindow : Window
     public MapWindow()
     {
         InitializeComponent();
+        WindowFx.Apply(this); // koyu baslik cubugu + yuvarlak kose + belirme
 
         // Veri kaynagi: kalici ayar (settings.json) uygulanir; "Otomatik" modda
         // oncelik SCADA_HUB_URL > snapshot dosyasi > simulasyon.
@@ -99,6 +101,7 @@ public partial class MapWindow : Window
 
         // Acik detay eski kaynaga aitti; kapat.
         _selected = null;
+        Map.SelectedId = null;
         Detail.Visibility = Visibility.Collapsed;
         UpdateAlarms();
     }
@@ -182,10 +185,11 @@ public partial class MapWindow : Window
         if (n.IsStation)
         {
             _selected = n.Id;
+            Map.SelectedId = n.Id; // haritada secim halkasi
             _vib.Clear(); _bt.Clear(); _dp.Clear();
             DetailId.Text = n.Id;
             DetailName.Text = n.Name;
-            Detail.Visibility = Visibility.Visible;
+            ShowDetailAnimated();
             UpdateDetail();
             UpdateSensorList(n.Id);
             SelectedInfo.Text = $"{n.Id}  {n.Name}";
@@ -196,9 +200,24 @@ public partial class MapWindow : Window
         }
     }
 
+    // Detay panelini sagdan kayarak + belirerek ac (zaten acisa animasyon yok).
+    private void ShowDetailAnimated()
+    {
+        bool wasHidden = Detail.Visibility != Visibility.Visible;
+        Detail.Visibility = Visibility.Visible;
+        if (!wasHidden) return;
+        var tt = (TranslateTransform)Detail.RenderTransform;
+        tt.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(40, 0, TimeSpan.FromMilliseconds(180))
+                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        Detail.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
+    }
+
     private void CloseDetail_Click(object sender, RoutedEventArgs e)
     {
         _selected = null;
+        Map.SelectedId = null;
         Detail.Visibility = Visibility.Collapsed;
     }
 

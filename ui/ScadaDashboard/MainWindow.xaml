@@ -6,8 +6,14 @@
         Height="820" Width="1320"
         MinHeight="600" MinWidth="1000"
         WindowStartupLocation="CenterScreen"
-        FontFamily="Segoe UI"
-        Background="{StaticResource BgBrush}">
+        FontFamily="Segoe UI">
+    <!-- Hafif dikey gradyan: ustte koyu, altta bir tik acik (derinlik) -->
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#0D141D" Offset="0"/>
+            <GradientStop Color="#131E2B" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Background>
 
     <Grid>
         <Grid.RowDefinitions>

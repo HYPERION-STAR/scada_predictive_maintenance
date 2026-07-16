@@ -29,10 +29,22 @@
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button Content="Makine Paneli" Click="OpenDashboard_Click" Style="{StaticResource GhostButton}"
-                            Padding="12,6" Margin="0,0,14,0"/>
-                    <Button Content="Ayarlar" Click="OpenSettings_Click" Style="{StaticResource GhostButton}"
-                            Padding="12,6" Margin="0,0,14,0"/>
+                    <Button Click="OpenDashboard_Click" Style="{StaticResource GhostButton}"
+                            Padding="12,6" Margin="0,0,14,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE90F;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Makine Paneli" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Click="OpenSettings_Click" Style="{StaticResource GhostButton}"
+                            Padding="12,6" Margin="0,0,14,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Ayarlar" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Border x:Name="AlarmBox" Background="#E74C3C" CornerRadius="6" Padding="10,5" Margin="0,0,14,0"
                             Visibility="Collapsed">
                         <TextBlock x:Name="AlarmText" FontSize="12" FontWeight="Bold" Foreground="#0F1620"/>
@@ -51,6 +63,9 @@
                     HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="330"
                     Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource StrokeBrush}"
                     BorderThickness="1,0,0,0">
+                <Border.RenderTransform>
+                    <TranslateTransform/>
+                </Border.RenderTransform>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="18,16">
                     <Grid>
@@ -59,8 +74,11 @@
                             <TextBlock x:Name="DetailName" FontSize="17" FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}"/>
                         </StackPanel>
-                        <Button Content="X" Click="CloseDetail_Click" HorizontalAlignment="Right" VerticalAlignment="Top"
-                                Width="26" Height="24" Padding="0" Style="{StaticResource GhostButton}"/>
+                        <Button Click="CloseDetail_Click" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                Width="26" Height="24" Padding="0" Style="{StaticResource GhostButton}"
+                                ToolTip="Paneli kapat">
+                            <TextBlock Text="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                        </Button>
                     </Grid>
 
                     <Border x:Name="DetailStatusBox" CornerRadius="6" Padding="10,6" Margin="0,12,0,0" Background="#2ECC71">

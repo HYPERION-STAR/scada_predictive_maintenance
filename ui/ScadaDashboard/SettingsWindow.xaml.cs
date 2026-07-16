@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow(AppSettings current, string? snapshotPath)
     {
         InitializeComponent();
+        WindowFx.Apply(this);
         Result = current;
 
         ModeAuto.IsChecked = current.SourceMode == SourceMode.Otomatik;

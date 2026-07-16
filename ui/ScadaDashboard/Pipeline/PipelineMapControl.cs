@@ -16,8 +16,9 @@ namespace ScadaDashboard.Pipeline;
 public sealed class PipelineMapControl : Control
 {
     private static readonly Color Bg = Color.FromRgb(0x0F, 0x16, 0x20);       // deniz / zemin
-    private static readonly Color Land = Color.FromRgb(0x18, 0x24, 0x32);     // kara dolgusu
-    private static readonly Color Province = Color.FromRgb(0x33, 0x47, 0x5C); // il sınırı
+    // Harita tabani hafif desatüre: renkli dugum/akislar one ciksin.
+    private static readonly Color Land = Color.FromRgb(0x19, 0x23, 0x2F);     // kara dolgusu
+    private static readonly Color Province = Color.FromRgb(0x36, 0x45, 0x55); // il sınırı
     private static readonly Color TextCol = Color.FromRgb(0xE6, 0xEE, 0xF6);
     private static readonly Color MutedCol = Color.FromRgb(0x9A, 0xAF, 0xC4); // App.xaml MutedColor ile ayni
 
@@ -50,7 +51,16 @@ public sealed class PipelineMapControl : Control
 
     private string? _hoverId;   // uzerine gelinen dugum/segment
     private bool _hoverSeg;
+    private int _hoverStartTick; // hover buyume animasyonu baslangici
     private Point _mouse;
+
+    // Secili istasyon: panel <-> harita baglantisi icin parlak halka cizilir.
+    private string? _selectedId;
+    public string? SelectedId
+    {
+        get => _selectedId;
+        set { _selectedId = value; InvalidateVisual(); }
+    }
 
     // Provins geometrisi cache (boyut/zoom/pan degisince yeniden kurulur).
     private Geometry? _provGeo;
@@ -197,8 +207,11 @@ public sealed class PipelineMapControl : Control
             var col = Lerp(lowCol, highCol, snap.LoadRatio);
             double thick = 2.5 + snap.LoadRatio * 4.0;
 
-            var glowPen = new Pen(new SolidColorBrush(Color.FromArgb(90, col.R, col.G, col.B)), thick + 3);
-            var mainPen = new Pen(new SolidColorBrush(col), thick);
+            // Yuvarlak uclar: polyline kirilmalarinda purussuz gorunum.
+            var glowPen = new Pen(new SolidColorBrush(Color.FromArgb(90, col.R, col.G, col.B)), thick + 3)
+                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            var mainPen = new Pen(new SolidColorBrush(col), thick)
+                { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
             for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(glowPen, pts[i], pts[i + 1]);
             for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(mainPen, pts[i], pts[i + 1]);
 
@@ -207,7 +220,8 @@ public sealed class PipelineMapControl : Control
             {
                 double lp = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 200.0);
                 byte la = (byte)(60 + lp * 190);
-                var leakPen = new Pen(new SolidColorBrush(Color.FromArgb(la, 0xE7, 0x4C, 0x3C)), thick + 7);
+                var leakPen = new Pen(new SolidColorBrush(Color.FromArgb(la, 0xE7, 0x4C, 0x3C)), thick + 7)
+                    { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
                 for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(leakPen, pts[i], pts[i + 1]);
             }
 
@@ -215,12 +229,22 @@ public sealed class PipelineMapControl : Control
             double segLen = 0;
             for (int i = 0; i + 1 < pts.Length; i++) segLen += (pts[i + 1] - pts[i]).Length;
 
+            // Akis isaretleri: yon gosteren kucuk oklar (chevron), akisla kayar.
             var dotBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xEE, 0xF6));
             const int dots = 4;
             for (int i = 0; i < dots; i++)
             {
                 double t = (phase + (double)i / dots) % 1.0;
-                dc.DrawEllipse(dotBrush, null, PointAlong(pts, segLen * t), 2.0, 2.0);
+                var cp = PointAlong(pts, segLen * t, out var cd);
+                var perp2 = new Vector(-cd.Y, cd.X);
+                var tri = new StreamGeometry();
+                using (var tc = tri.Open())
+                {
+                    tc.BeginFigure(cp + cd * 3.4, true, true);           // uc: akis yonu
+                    tc.LineTo(cp - cd * 2.2 + perp2 * 2.6, true, false);
+                    tc.LineTo(cp - cd * 2.2 - perp2 * 2.6, true, false);
+                }
+                dc.DrawGeometry(dotBrush, null, tri);
             }
 
             // Etiket: guzergahin orta noktasi, yerel yone dik yukari kaydirilir.
@@ -249,6 +273,7 @@ public sealed class PipelineMapControl : Control
         // Yogun agda (snapshot: ~90 dugum) her dugume etiket sigmaz; yalnizca
         // istasyon etiketleri cizilir, digerleri tooltip ile okunur.
         bool dense = nodes.Count > 30;
+        var labelDraws = new List<Action>(); // etiketler tum dairelerden SONRA (ustte kalir)
         foreach (var n in nodes)
         {
             if (IsHidden(n)) continue; // kategori gizli: daire + etiket cizilmez
@@ -256,9 +281,22 @@ public sealed class PipelineMapControl : Control
             var snap = _source.Node(n.Id);
             double r = n.IsStation ? 12 : 8;
 
+            // Hover: 120ms'de yumusak %18 buyume (render dongusu ~16fps zaten donuyor).
+            if (n.Id == _hoverId && !_hoverSeg)
+            {
+                double ht = Math.Clamp((Environment.TickCount - _hoverStartTick) / 120.0, 0, 1);
+                r *= 1 + 0.18 * (ht * ht * (3 - 2 * ht)); // smoothstep
+            }
+
             Brush fill = n.IsStation ? HealthBrush(snap.Health)
                                      : new SolidColorBrush(NodeTypeColor(n.Type));
             var halo = ((SolidColorBrush)fill).Color;
+
+            // Kritik istasyon: genis, cok seffaf kirmizi "isi" haresi (uzaktan dikkat ceker).
+            if (n.IsStation && snap.Health < 20)
+                dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(24, 0xE7, 0x4C, 0x3C)), null,
+                    p, r + 26, r + 26);
+
             dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, halo.R, halo.G, halo.B)), null, p, r + 6, r + 6);
 
             // Kritik istasyon: kirmizi yanip sonen halka (alarm).
@@ -270,6 +308,13 @@ public sealed class PipelineMapControl : Control
             }
 
             dc.DrawEllipse(fill, new Pen(new SolidColorBrush(Bg), 2), p, r, r);
+
+            // Secili istasyon: parlak halka — detay paneliyle gorsel bag.
+            if (n.Id == _selectedId)
+            {
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(60, TextCol.R, TextCol.G, TextCol.B)), 5), p, r + 7, r + 7);
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(235, TextCol.R, TextCol.G, TextCol.B)), 1.6), p, r + 5, r + 5);
+            }
 
             // Depo: yandan tank doluluk gostergesi.
             if (n.Type == "STORAGE")
@@ -285,15 +330,22 @@ public sealed class PipelineMapControl : Control
 
             if (!dense || n.IsStation)
             {
-                var name = Text(n.Name, 11.5, TextCol, dpi);
-                DrawLabel(dc, name, new Point(p.X - name.Width / 2, p.Y + r + 4));
-                string sub = n.IsStation ? $"%{snap.Health:0}  •  RUL {snap.Rul:0}"
-                           : n.Type == "STORAGE" ? $"DEPO  %{_source.Level(n.Id):0}"
-                           : n.Type;
-                var subFt = Text(sub, 10, MutedCol, dpi);
-                DrawLabel(dc, subFt, new Point(p.X - subFt.Width / 2, p.Y + r + 20));
+                var nc = n; var pc = p; var rc = r; var snapc = snap;
+                labelDraws.Add(() =>
+                {
+                    var name = Text(nc.Name, 11.5, TextCol, dpi);
+                    DrawLabel(dc, name, new Point(pc.X - name.Width / 2, pc.Y + rc + 4));
+                    string sub = nc.IsStation ? $"%{snapc.Health:0}  •  RUL {snapc.Rul:0}"
+                               : nc.Type == "STORAGE" ? $"DEPO  %{_source.Level(nc.Id):0}"
+                               : nc.Type;
+                    var subFt = Text(sub, 10, MutedCol, dpi);
+                    DrawLabel(dc, subFt, new Point(pc.X - subFt.Width / 2, pc.Y + rc + 20));
+                });
             }
         }
+
+        // Etiket gecisi: hicbir daire etiketin ustune binmez.
+        foreach (var draw in labelDraws) draw();
 
         DrawTooltip(dc, dpi);
     }
@@ -359,10 +411,15 @@ public sealed class PipelineMapControl : Control
             InvalidateVisual();
             return;
         }
+        string? prevHover = _hoverId;
         _hoverId = null;
         foreach (var n in PipelineTopology.Nodes)
             if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
-            { _hoverId = n.Id; _hoverSeg = false; return; }
+            {
+                _hoverId = n.Id; _hoverSeg = false;
+                if (_hoverId != prevHover) _hoverStartTick = Environment.TickCount;
+                return;
+            }
         foreach (var s in PipelineTopology.Segments)
             if (_segScreen.TryGetValue(s.Id, out var pts) && DistToPolyline(_mouse, pts) <= 7)
             { _hoverId = s.Id; _hoverSeg = true; return; }

@@ -72,7 +72,18 @@
                                     <Border x:Name="PART_Indicator"
                                             HorizontalAlignment="Left"
                                             CornerRadius="7"
-                                            Background="{TemplateBinding Foreground}"/>
+                                            Background="{TemplateBinding Foreground}">
+                                        <!-- Ustte parlak, altta koyu sheen: cubuk daha "dolu" gorunur -->
+                                        <Border CornerRadius="7">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#40FFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#00FFFFFF" Offset="0.55"/>
+                                                    <GradientStop Color="#26000000" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+                                    </Border>
                                 </Grid>
                             </Border>
                         </ControlTemplate>

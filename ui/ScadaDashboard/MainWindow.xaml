@@ -94,9 +94,38 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Width="300" Margin="5" Padding="20"
+                            <!-- Kart: golge + hover'da 2px yukari kalkis -->
+                            <Border Width="300" Margin="8" Padding="20"
                                     Background="{StaticResource CardBrush}" CornerRadius="16"
-                                    BorderBrush="{Binding StatusBrush}" BorderThickness="1.5">
+                                    BorderBrush="{Binding StatusBrush}" BorderThickness="1.5"
+                                    Effect="{StaticResource CardShadow}">
+                                <Border.RenderTransform>
+                                    <TranslateTransform/>
+                                </Border.RenderTransform>
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Trigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                                                             To="-2" Duration="0:0:0.12"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.EnterActions>
+                                                <Trigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                                                             To="0" Duration="0:0:0.15"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.ExitActions>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
                                 <StackPanel>
                                     <!-- Baslik satiri -->
                                     <Grid>

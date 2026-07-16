@@ -98,7 +98,10 @@ public sealed class MiniChart : Control
         pen.Freeze();
         dc.DrawGeometry(null, pen, line);
 
-        // Son noktada nokta isareti
-        dc.DrawEllipse(LineBrush, null, new Point(X(n - 1), Y(vals[n - 1])), 2.6, 2.6);
+        // Son noktada nokta isareti (soluk hale + dolu nokta)
+        var last = new Point(X(n - 1), Y(vals[n - 1]));
+        dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(60, baseColor.R, baseColor.G, baseColor.B)),
+            null, last, 5.5, 5.5);
+        dc.DrawEllipse(LineBrush, null, last, 2.6, 2.6);
     }
 }

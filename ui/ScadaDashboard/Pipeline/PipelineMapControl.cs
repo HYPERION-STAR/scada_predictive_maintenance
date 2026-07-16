@@ -15,9 +15,10 @@ namespace ScadaDashboard.Pipeline;
 /// </summary>
 public sealed class PipelineMapControl : Control
 {
-    private static readonly Color Bg = Color.FromRgb(0x0F, 0x16, 0x20);       // deniz / zemin
+    private static readonly Color Bg = Color.FromRgb(0x0F, 0x16, 0x20);       // notr zemin (dugum kenari, etiket arkasi)
+    private static readonly Color Sea = Color.FromRgb(0x0D, 0x24, 0x3A);      // deniz (belirgin mavi -> su okunur)
     // Harita tabani hafif desatüre: renkli dugum/akislar one ciksin.
-    private static readonly Color Land = Color.FromRgb(0x19, 0x23, 0x2F);     // kara dolgusu (Turkiye)
+    private static readonly Color Land = Color.FromRgb(0x1B, 0x27, 0x33);     // kara dolgusu (Turkiye, mavimsi denizden ayri)
     private static readonly Color NeighLand = Color.FromRgb(0x14, 0x1D, 0x29); // komsu ulke (daha koyu)
     private static readonly Color NeighEdge = Color.FromRgb(0x3C, 0x4E, 0x60); // komsu/deniz sinir (kiyi cizgisi)
     private static readonly Color Province = Color.FromRgb(0x36, 0x45, 0x55); // il sınırı
@@ -165,7 +166,7 @@ public sealed class PipelineMapControl : Control
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight;
-        dc.DrawRectangle(new SolidColorBrush(Bg), null, new Rect(0, 0, w, h));
+        dc.DrawRectangle(new SolidColorBrush(Sea), null, new Rect(0, 0, w, h)); // deniz zemini
         if (_source == null || w < 40 || h < 40) return;
 
         EnsureBbox();

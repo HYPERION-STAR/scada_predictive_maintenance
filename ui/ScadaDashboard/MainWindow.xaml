@@ -6,14 +6,8 @@
         Height="820" Width="1320"
         MinHeight="600" MinWidth="1000"
         WindowStartupLocation="CenterScreen"
-        FontFamily="Segoe UI">
-    <!-- Hafif dikey gradyan: ustte koyu, altta bir tik acik (derinlik) -->
-    <Window.Background>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#0D141D" Offset="0"/>
-            <GradientStop Color="#131E2B" Offset="1"/>
-        </LinearGradientBrush>
-    </Window.Background>
+        FontFamily="Segoe UI"
+        Background="{DynamicResource BgBrush}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -22,8 +16,8 @@
         </Grid.RowDefinitions>
 
         <!-- ==================== ÜST BAR ==================== -->
-        <Border Grid.Row="0" Background="{StaticResource PanelBrush}" Padding="20,14"
-                BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource PanelBrush}" Padding="20,14"
+                BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -32,51 +26,51 @@
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                     <TextBlock Text="SCADA KESTİRİMCİ BAKIM" FontSize="20" FontWeight="Bold"
-                               Foreground="{StaticResource TextBrush}"/>
-                    <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
+                               Foreground="{DynamicResource TextBrush}"/>
+                    <TextBlock Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,2,0,0">
                         <Run Text="Yapay zeka destekli makine sağlığı izleme"/>
-                        <Run Text="  •  Veri kaynağı: " Foreground="{StaticResource AccentBrush}"/><Run Text="{Binding SourceLabel, Mode=OneWay}" Foreground="{StaticResource AccentBrush}"/>
+                        <Run Text="  •  Veri kaynağı: " Foreground="{DynamicResource AccentBrush}"/><Run Text="{Binding SourceLabel, Mode=OneWay}" Foreground="{DynamicResource AccentBrush}"/>
                     </TextBlock>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- Ozet sayaclar -->
-                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
-                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="TOPLAM" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="TOPLAM" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
                             <TextBlock Text="{Binding TotalCount}" FontSize="18" FontWeight="Bold"
                                        Style="{StaticResource NumText}"
-                                       Foreground="{StaticResource TextBrush}"/>
+                                       Foreground="{DynamicResource TextBrush}"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
-                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="SAĞLIKLI" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="SAĞLIKLI" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
                             <TextBlock Text="{Binding HealthyCount}" FontSize="18" FontWeight="Bold"
                                        Style="{StaticResource NumText}" Foreground="{StaticResource HealthyBrush}"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
-                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="UYARI/RİSK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="UYARI/RİSK" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
                             <TextBlock Text="{Binding WarningCount}" FontSize="18" FontWeight="Bold"
                                        Style="{StaticResource NumText}" Foreground="{StaticResource WarnBrush}"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
-                            BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
+                    <Border Background="{DynamicResource CardBrush}" CornerRadius="8" Padding="14,8" Margin="6,0"
+                            BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="KRİTİK" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                            <TextBlock Text="KRİTİK" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
                             <TextBlock Text="{Binding CriticalCount}" FontSize="18" FontWeight="Bold"
                                        Style="{StaticResource NumText}" Foreground="{StaticResource CriticalBrush}"/>
                         </StackPanel>
                     </Border>
                     <TextBlock Text="{Binding Clock}" VerticalAlignment="Center" Margin="16,0,0,0"
                                Style="{StaticResource NumText}"
-                               FontSize="13" Foreground="{StaticResource MutedBrush}"/>
+                               FontSize="13" Foreground="{DynamicResource MutedBrush}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -102,9 +96,9 @@
                         <DataTemplate>
                             <!-- Kart: golge + hover'da 2px yukari kalkis -->
                             <Border Width="300" Margin="8" Padding="20"
-                                    Background="{StaticResource CardBrush}" CornerRadius="16"
+                                    Background="{DynamicResource CardBrush}" CornerRadius="16"
                                     BorderBrush="{Binding StatusBrush}" BorderThickness="1.5"
-                                    Effect="{StaticResource CardShadow}">
+                                    Effect="{DynamicResource CardShadow}">
                                 <Border.RenderTransform>
                                     <TranslateTransform/>
                                 </Border.RenderTransform>
@@ -142,12 +136,12 @@
                                         <StackPanel Grid.Column="0">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="{Binding Id}" FontSize="12"
-                                                           Foreground="{StaticResource MutedBrush}"/>
+                                                           Foreground="{DynamicResource MutedBrush}"/>
                                                 <TextBlock Text="{Binding Type, StringFormat=' •  {0}'}" FontSize="12"
-                                                           Foreground="{StaticResource MutedBrush}"/>
+                                                           Foreground="{DynamicResource MutedBrush}"/>
                                             </StackPanel>
                                             <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource TextBrush}"/>
+                                                       Foreground="{DynamicResource TextBrush}"/>
                                         </StackPanel>
                                         <!-- Durum rozeti: soluk zemin + renkli yazi (hap bicimi) -->
                                         <Border Grid.Column="1" VerticalAlignment="Top"
@@ -165,7 +159,7 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="SAĞLIK DURUMU" FontSize="11"
-                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Bottom"/>
+                                                   Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Bottom"/>
                                         <TextBlock Grid.Column="1" FontSize="19" FontWeight="Bold"
                                                    Style="{StaticResource NumText}"
                                                    Foreground="{Binding StatusBrush}"
@@ -182,15 +176,15 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="KALAN ÖMÜR (RUL)" FontSize="10"
-                                                       Foreground="{StaticResource MutedBrush}"/>
-                                            <TextBlock FontSize="15" Foreground="{StaticResource TextBrush}"
+                                                       Foreground="{DynamicResource MutedBrush}"/>
+                                            <TextBlock FontSize="15" Foreground="{DynamicResource TextBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Rul, StringFormat={}{0:0} döngü}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1">
                                             <TextBlock Text="ANOMALİ OLASILIĞI" FontSize="10"
-                                                       Foreground="{StaticResource MutedBrush}"/>
-                                            <TextBlock FontSize="15" Foreground="{StaticResource TextBrush}"
+                                                       Foreground="{DynamicResource MutedBrush}"/>
+                                            <TextBlock FontSize="15" Foreground="{DynamicResource TextBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding AnomalyProbability, StringFormat={}{0:P0}}"/>
                                         </StackPanel>
@@ -202,13 +196,13 @@
                                         <Grid Margin="0,0,0,2">
                                             <StackPanel Orientation="Horizontal">
                                                 <Ellipse Width="7" Height="7" Fill="{StaticResource TempBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                <TextBlock Text="Sıcaklık" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                                <TextBlock Text="Sıcaklık" FontSize="11" Foreground="{DynamicResource MutedBrush}"/>
                                             </StackPanel>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TempBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Temperature, StringFormat={}{0:0.0} °C}"/>
                                         </Grid>
-                                        <c:MiniChart Height="52" Background="{StaticResource TrackBrush}"
+                                        <c:MiniChart Height="52" Background="{DynamicResource TrackBrush}"
                                                      LineBrush="{StaticResource TempBrush}"
                                                      Values="{Binding TemperatureHistory}"/>
 
@@ -216,13 +210,13 @@
                                         <Grid Margin="0,8,0,2">
                                             <StackPanel Orientation="Horizontal">
                                                 <Ellipse Width="7" Height="7" Fill="{StaticResource PresBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                <TextBlock Text="Basınç" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                                <TextBlock Text="Basınç" FontSize="11" Foreground="{DynamicResource MutedBrush}"/>
                                             </StackPanel>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource PresBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Pressure, StringFormat={}{0:0.00} bar}"/>
                                         </Grid>
-                                        <c:MiniChart Height="52" Background="{StaticResource TrackBrush}"
+                                        <c:MiniChart Height="52" Background="{DynamicResource TrackBrush}"
                                                      LineBrush="{StaticResource PresBrush}"
                                                      Values="{Binding PressureHistory}"/>
 
@@ -230,13 +224,13 @@
                                         <Grid Margin="0,8,0,2">
                                             <StackPanel Orientation="Horizontal">
                                                 <Ellipse Width="7" Height="7" Fill="{StaticResource VibBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                <TextBlock Text="Titreşim" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                                                <TextBlock Text="Titreşim" FontSize="11" Foreground="{DynamicResource MutedBrush}"/>
                                             </StackPanel>
                                             <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource VibBrush}"
                                                        Style="{StaticResource NumText}"
                                                        Text="{Binding Vibration, StringFormat={}{0:0.00} mm/s}"/>
                                         </Grid>
-                                        <c:MiniChart Height="52" Background="{StaticResource TrackBrush}"
+                                        <c:MiniChart Height="52" Background="{DynamicResource TrackBrush}"
                                                      LineBrush="{StaticResource VibBrush}"
                                                      Values="{Binding VibrationHistory}"/>
                                     </StackPanel>
@@ -256,11 +250,11 @@
             <GridSplitter Grid.Row="1" x:Name="AlertSplitter" Height="6"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center"
                           ResizeBehavior="PreviousAndNext" ResizeDirection="Rows"
-                          Background="{StaticResource StrokeBrush}" Cursor="SizeNS"/>
+                          Background="{DynamicResource StrokeBrush}" Cursor="SizeNS"/>
 
             <!-- Uyari paneli (alt satir - suruklenebilir + kucultulebilir, maks yukseklik 520) -->
-            <Border Grid.Row="2" Background="{StaticResource PanelBrush}"
-                    BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
+            <Border Grid.Row="2" Background="{DynamicResource PanelBrush}"
+                    BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="0,1,0,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -273,9 +267,9 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="UYARILAR / OLAYLAR" FontSize="13" FontWeight="Bold"
-                                       Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="Risk eşiği aşıldığında e-posta/SMS simüle edilir"
-                                       FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                       FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="12,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Grid.Column="1" x:Name="AlertToggle" Style="{StaticResource GhostButton}"
                                 Click="ToggleAlerts_Click" Width="34" Height="26" Padding="0"
@@ -290,7 +284,7 @@
                         <ItemsControl ItemsSource="{Binding Alerts}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="{StaticResource CardBrush}" CornerRadius="8" Height="52" Margin="0,0,0,8" Padding="10,8">
+                                    <Border Background="{DynamicResource CardBrush}" CornerRadius="8" Height="52" Margin="0,0,0,8" Padding="10,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="4"/>
@@ -301,13 +295,13 @@
                                             <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="{Binding Time}" FontSize="11"
-                                                               Foreground="{StaticResource MutedBrush}"/>
+                                                               Foreground="{DynamicResource MutedBrush}"/>
                                                     <TextBlock Text="{Binding MachineId}" FontSize="11" FontWeight="Bold"
                                                                Margin="8,0,0,0"
                                                                Foreground="{Binding MachineId, Converter={StaticResource MachineIdToBrush}}"/>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding Message}" FontSize="12" TextTrimming="CharacterEllipsis"
-                                                           Foreground="{StaticResource TextBrush}" Margin="0,2,0,0"/>
+                                                           Foreground="{DynamicResource TextBrush}" Margin="0,2,0,0"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>

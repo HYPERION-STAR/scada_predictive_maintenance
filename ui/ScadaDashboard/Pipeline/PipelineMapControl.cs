@@ -15,15 +15,47 @@ namespace ScadaDashboard.Pipeline;
 /// </summary>
 public sealed class PipelineMapControl : Control
 {
-    private static readonly Color Bg = Color.FromRgb(0x0F, 0x16, 0x20);       // notr zemin (dugum kenari, etiket arkasi)
-    private static readonly Color Sea = Color.FromRgb(0x0D, 0x24, 0x3A);      // deniz (belirgin mavi -> su okunur)
-    // Harita tabani hafif desatüre: renkli dugum/akislar one ciksin.
-    private static readonly Color Land = Color.FromRgb(0x1B, 0x27, 0x33);     // kara dolgusu (Turkiye, mavimsi denizden ayri)
-    private static readonly Color NeighLand = Color.FromRgb(0x14, 0x1D, 0x29); // komsu ulke (daha koyu)
-    private static readonly Color NeighEdge = Color.FromRgb(0x3C, 0x4E, 0x60); // komsu/deniz sinir (kiyi cizgisi)
-    private static readonly Color Province = Color.FromRgb(0x36, 0x45, 0x55); // il sınırı
-    private static readonly Color TextCol = Color.FromRgb(0xE6, 0xEE, 0xF6);
-    private static readonly Color MutedCol = Color.FromRgb(0x9A, 0xAF, 0xC4); // App.xaml MutedColor ile ayni
+    // Tema-bagimli renkler (ThemeManager.ApplyTheme ile koyu/acik arasinda gecer).
+    private static Color Bg = C(0x0F, 0x16, 0x20);        // notr zemin (dugum kenari, etiket arkasi)
+    private static Color Sea = C(0x0D, 0x24, 0x3A);       // deniz (belirgin mavi)
+    private static Color Land = C(0x1B, 0x27, 0x33);      // kara dolgusu (Turkiye)
+    private static Color NeighLand = C(0x14, 0x1D, 0x29); // komsu ulke
+    private static Color NeighEdge = C(0x3C, 0x4E, 0x60); // kiyi/sinir cizgisi
+    private static Color Province = C(0x36, 0x45, 0x55);  // il sınırı
+    private static Color TextCol = C(0xE6, 0xEE, 0xF6);
+    private static Color MutedCol = C(0x9A, 0xAF, 0xC4);
+    private static Color FlowDash = C(0xDF, 0xEA, 0xF3);  // borudaki akis cizgileri
+    private static Color PipeSheen = C(0xFF, 0xFF, 0xFF); // boru parlak sheen
+    private static Color TipBg = C(0x1B, 0x28, 0x38);     // ipucu kutusu zemin
+    private static Color TipBorder = C(0x36, 0x45, 0x55); // ipucu kenar
+    private static byte SheenA = 70;                      // sheen opakligi (temaya gore)
+    private static Color GeoSeaCol = C(0x5B, 0x76, 0x8E); // deniz etiketi
+    private static Color GeoCountryCol = C(0x6C, 0x7C, 0x8C); // ulke etiketi
+
+    private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
+
+    /// <summary>Harita paletini koyu/açık tema arasında değiştirir (ThemeManager çağırır).</summary>
+    public static void ApplyTheme(bool light)
+    {
+        if (light)
+        {
+            Bg = C(0xEE, 0xF2, 0xF6); Sea = C(0xB6, 0xD2, 0xE8); Land = C(0xE8, 0xEE, 0xF4);
+            NeighLand = C(0xDB, 0xE3, 0xEC); NeighEdge = C(0x9D, 0xB0, 0xC2); Province = C(0xC2, 0xCF, 0xDC);
+            TextCol = C(0x16, 0x20, 0x2B); MutedCol = C(0x5B, 0x6B, 0x7C);
+            FlowDash = C(0x2A, 0x3C, 0x4E); PipeSheen = C(0xFF, 0xFF, 0xFF); SheenA = 40;
+            TipBg = C(0xFF, 0xFF, 0xFF); TipBorder = C(0xC2, 0xCF, 0xDC);
+            GeoSeaCol = C(0x5E, 0x7B, 0x97); GeoCountryCol = C(0x7B, 0x8B, 0x9C);
+        }
+        else
+        {
+            Bg = C(0x0F, 0x16, 0x20); Sea = C(0x0D, 0x24, 0x3A); Land = C(0x1B, 0x27, 0x33);
+            NeighLand = C(0x14, 0x1D, 0x29); NeighEdge = C(0x3C, 0x4E, 0x60); Province = C(0x36, 0x45, 0x55);
+            TextCol = C(0xE6, 0xEE, 0xF6); MutedCol = C(0x9A, 0xAF, 0xC4);
+            FlowDash = C(0xDF, 0xEA, 0xF3); PipeSheen = C(0xFF, 0xFF, 0xFF); SheenA = 70;
+            TipBg = C(0x1B, 0x28, 0x38); TipBorder = C(0x36, 0x45, 0x55);
+            GeoSeaCol = C(0x5B, 0x76, 0x8E); GeoCountryCol = C(0x6C, 0x7C, 0x8C);
+        }
+    }
 
     private IPipelineSource? _source;
     public IPipelineSource? Source
@@ -268,7 +300,7 @@ public sealed class PipelineMapControl : Control
                 { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
             var mainPen = new Pen(new SolidColorBrush(col), thick)
                 { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
-            var sheenPen = new Pen(new SolidColorBrush(Color.FromArgb(70, 0xFF, 0xFF, 0xFF)), Math.Max(0.8, thick * 0.32))
+            var sheenPen = new Pen(new SolidColorBrush(Color.FromArgb(SheenA, PipeSheen.R, PipeSheen.G, PipeSheen.B)), Math.Max(0.8, thick * 0.32))
                 { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
             for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(casingPen, pts[i], pts[i + 1]);
             for (int i = 0; i + 1 < pts.Length; i++) dc.DrawLine(mainPen, pts[i], pts[i + 1]);
@@ -294,7 +326,7 @@ public sealed class PipelineMapControl : Control
             {
                 int dashN = Math.Clamp((int)(segLen / 40), 2, 10);
                 double dashLen = Math.Min(6, thick * 1.6);
-                var flowPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 0xDF, 0xEA, 0xF3)),
+                var flowPen = new Pen(new SolidColorBrush(Color.FromArgb(120, FlowDash.R, FlowDash.G, FlowDash.B)),
                     Math.Max(1.0, thick * 0.5)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
                 for (int i = 0; i < dashN; i++)
                 {
@@ -490,9 +522,9 @@ public sealed class PipelineMapControl : Control
 
             (double size, Color col) = g.Kind switch
             {
-                GeoKind.Sea => (12.5, Color.FromArgb(140, 0x5B, 0x76, 0x8E)),
-                GeoKind.Country => (11.0, Color.FromArgb(120, 0x6C, 0x7C, 0x8C)),
-                _ => (10.5, Color.FromArgb(150, 0x8C, 0xA3, 0xB8)),
+                GeoKind.Sea => (12.5, Color.FromArgb(160, GeoSeaCol.R, GeoSeaCol.G, GeoSeaCol.B)),
+                GeoKind.Country => (11.0, Color.FromArgb(140, GeoCountryCol.R, GeoCountryCol.G, GeoCountryCol.B)),
+                _ => (10.5, Color.FromArgb(150, MutedCol.R, MutedCol.G, MutedCol.B)),
             };
             foreach (var (line, idx) in g.Name.Split('\n').Select((l, i) => (l, i)))
             {
@@ -749,8 +781,8 @@ public sealed class PipelineMapControl : Control
         // Golge + govde (yuvarlak kose).
         dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(70, 0, 0, 0)), null,
             new Rect(x + 2, y + 3, w, h), 8, 8);
-        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(0x1B, 0x28, 0x38)),
-            new Pen(new SolidColorBrush(Color.FromRgb(0x36, 0x45, 0x55)), 1), rect, 8, 8);
+        dc.DrawRoundedRectangle(new SolidColorBrush(TipBg),
+            new Pen(new SolidColorBrush(TipBorder), 1), rect, 8, 8);
 
         double cy = y + pad;
         dc.DrawEllipse(new SolidColorBrush(dot), null, new Point(x + pad + 5, cy + titleFt.Height / 2), 5, 5);

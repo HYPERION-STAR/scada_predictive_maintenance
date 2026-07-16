@@ -22,6 +22,9 @@ public sealed class AppSettings
     public SourceMode SourceMode { get; set; } = SourceMode.Otomatik;
     public string HubUrl { get; set; } = "";
 
+    /// <summary>Açık tema (varsayılan koyu).</summary>
+    public bool LightTheme { get; set; } = false;
+
     /// <summary>Canlı telemetri endpoint'i (Canli modu; topoloji yine snapshot dosyasından).</summary>
     public string LiveUrl { get; set; } = "http://100.114.223.5:8000/api/scada/live_data";
 

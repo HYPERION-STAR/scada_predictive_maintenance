@@ -31,6 +31,7 @@ public partial class MapWindow : Window
         // oncelik SCADA_HUB_URL > snapshot dosyasi > simulasyon.
         ApplySource(_settings);
         Map.NodeClicked += OnNodeClicked;
+        ThemeManager.Changed += OnThemeChanged; // tema degisince harita yeniden cizilir
 
         // ~16 fps render (akis animasyonu); simulasyon durumu saniyede 1 ilerler.
         _render = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
@@ -456,9 +457,13 @@ public partial class MapWindow : Window
         if (buf.Count > 60) buf.RemoveAt(0);
     }
 
+    // Tema degisti: harita paleti guncellendi, yeniden ciz.
+    private void OnThemeChanged() => Map.InvalidateVisual();
+
     protected override void OnClosed(EventArgs e)
     {
         _render.Stop();
+        ThemeManager.Changed -= OnThemeChanged;
         base.OnClosed(e);
     }
 }

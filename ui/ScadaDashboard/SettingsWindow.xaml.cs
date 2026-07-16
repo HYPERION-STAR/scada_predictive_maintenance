@@ -10,12 +10,15 @@ namespace ScadaDashboard;
 public partial class SettingsWindow : Window
 {
     public AppSettings Result { get; private set; }
+    private readonly bool _origLight; // Vazgeç'te temayi geri almak icin
 
     public SettingsWindow(AppSettings current, string? snapshotPath)
     {
         InitializeComponent();
         WindowFx.Apply(this);
         Result = current;
+        _origLight = current.LightTheme;
+        LightThemeBox.IsChecked = current.LightTheme;
 
         ModeAuto.IsChecked = current.SourceMode == SourceMode.Otomatik;
         ModeSim.IsChecked = current.SourceMode == SourceMode.Simulasyon;
@@ -60,10 +63,23 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        Result = new AppSettings { SourceMode = mode, HubUrl = url, LiveUrl = liveUrl };
+        Result = new AppSettings
+        {
+            SourceMode = mode, HubUrl = url, LiveUrl = liveUrl,
+            LightTheme = LightThemeBox.IsChecked == true,
+        };
         Result.Save();
         DialogResult = true;
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    // Canli onizleme: onay kutusu degisince temayi hemen uygula.
+    private void Theme_Changed(object sender, RoutedEventArgs e)
+        => ThemeManager.Apply(LightThemeBox.IsChecked == true ? ThemeMode.Acik : ThemeMode.Koyu);
+
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        // Onizlenen tema geri alinir.
+        ThemeManager.Apply(_origLight ? ThemeMode.Acik : ThemeMode.Koyu);
+        DialogResult = false;
+    }
 }

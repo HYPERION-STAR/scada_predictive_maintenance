@@ -12,6 +12,14 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainException;
     }
 
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        // Kalici temayi ilk pencere olusmadan uygula (kaynak fircalari + harita paleti).
+        var s = Services.AppSettings.Load();
+        ThemeManager.Apply(s.LightTheme ? ThemeMode.Acik : ThemeMode.Koyu);
+        base.OnStartup(e);
+    }
+
     private void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log("Dispatcher", e.Exception);

@@ -20,22 +20,31 @@ public static class WindowFx
 
     public static void Apply(Window w)
     {
-        w.SourceInitialized += (_, _) =>
-        {
-            try
-            {
-                var h = new WindowInteropHelper(w).Handle;
-                int on = 1;
-                DwmSetWindowAttribute(h, DwmaUseImmersiveDarkMode, ref on, sizeof(int));
-                int round = 2;
-                DwmSetWindowAttribute(h, DwmaWindowCornerPreference, ref round, sizeof(int));
-            }
-            catch { /* eski Windows: cila yok, islev ayni */ }
-        };
+        w.SourceInitialized += (_, _) => SetTitleBar(w);
+
+        // Tema degisince baslik cubugunu (koyu/acik) guncelle.
+        void OnTheme() => SetTitleBar(w);
+        ThemeManager.Changed += OnTheme;
+        w.Closed += (_, _) => ThemeManager.Changed -= OnTheme;
 
         // Acilista 200ms yumusak belirme.
         w.Opacity = 0;
         w.Loaded += (_, _) => w.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
+    }
+
+    // Baslik cubugu: koyu temada koyu, acik temada acik + yuvarlak koseler.
+    private static void SetTitleBar(Window w)
+    {
+        try
+        {
+            var h = new WindowInteropHelper(w).Handle;
+            if (h == IntPtr.Zero) return;
+            int dark = ThemeManager.Current == ThemeMode.Koyu ? 1 : 0;
+            DwmSetWindowAttribute(h, DwmaUseImmersiveDarkMode, ref dark, sizeof(int));
+            int round = 2;
+            DwmSetWindowAttribute(h, DwmaWindowCornerPreference, ref round, sizeof(int));
+        }
+        catch { /* eski Windows: cila yok, islev ayni */ }
     }
 }

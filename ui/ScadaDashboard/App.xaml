@@ -61,7 +61,7 @@
                 <Setter Property="Minimum" Value="0"/>
                 <Setter Property="Maximum" Value="100"/>
                 <Setter Property="Height" Value="14"/>
-                <Setter Property="Background" Value="{StaticResource TrackBrush}"/>
+                <Setter Property="Background" Value="{DynamicResource TrackBrush}"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -93,8 +93,8 @@
 
             <!-- Bakim butonu: hover'da 100ms yumusak renk gecisi -->
             <Style x:Key="GhostButton" TargetType="Button">
-                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource StrokeBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource StrokeBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="10,4"/>
                 <Setter Property="Cursor" Value="Hand"/>
@@ -141,8 +141,8 @@
 
             <!-- GhostButton'un ToggleButton surumu (acikken vurgulu) -->
             <Style x:Key="GhostToggle" TargetType="ToggleButton">
-                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource StrokeBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource StrokeBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="10,4"/>
                 <Setter Property="Cursor" Value="Hand"/>
@@ -161,7 +161,7 @@
                                     <Setter TargetName="Bd" Property="Background" Value="#25384C"/>
                                 </Trigger>
                                 <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
                                     <Setter Property="Foreground" Value="#0F1620"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
@@ -173,14 +173,14 @@
             <!-- Dairesel onay kutusu (harita lejanti): Background = kategori rengi.
                  Isaretliyken dolu renkli daire, degilken ici bos halka + soluk etiket. -->
             <Style x:Key="CircleCheck" TargetType="CheckBox">
-                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="CheckBox">
                             <StackPanel Orientation="Horizontal" Background="Transparent">
                                 <Grid Width="14" Height="14" VerticalAlignment="Center">
-                                    <Ellipse x:Name="Ring" Stroke="{StaticResource MutedBrush}"
+                                    <Ellipse x:Name="Ring" Stroke="{DynamicResource MutedBrush}"
                                              StrokeThickness="1.3" Fill="Transparent"/>
                                     <Ellipse x:Name="Dot" Margin="3"
                                              Fill="{TemplateBinding Background}"/>
@@ -193,7 +193,7 @@
                                     <Setter Property="Opacity" Value="0.5"/>
                                 </Trigger>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource TextBrush}"/>
+                                    <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource TextBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

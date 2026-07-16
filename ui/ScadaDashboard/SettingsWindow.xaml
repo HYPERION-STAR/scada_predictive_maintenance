@@ -5,70 +5,79 @@
         Width="420" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         FontFamily="Segoe UI"
-        Background="{StaticResource BgBrush}">
+        Background="{DynamicResource BgBrush}">
 
     <StackPanel Margin="22,18">
         <TextBlock Text="VERİ KAYNAĞI" FontSize="12" FontWeight="Bold"
-                   Foreground="{StaticResource TextBrush}"/>
+                   Foreground="{DynamicResource TextBrush}"/>
         <TextBlock Text="Harita hangi kaynaktan beslensin? Uygula ile anında geçilir."
-                   FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,2,0,10"/>
+                   FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,10"/>
 
         <RadioButton x:Name="ModeAuto" GroupName="src" Margin="0,4"
-                     Foreground="{StaticResource TextBrush}">
+                     Foreground="{DynamicResource TextBrush}">
             <StackPanel>
                 <TextBlock Text="Otomatik" FontSize="13"/>
                 <TextBlock Text="SCADA_HUB_URL → snapshot dosyası → simülasyon sırasıyla ilk bulunan"
-                           FontSize="10.5" Foreground="{StaticResource MutedBrush}"/>
+                           FontSize="10.5" Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
         </RadioButton>
 
         <RadioButton x:Name="ModeSim" GroupName="src" Margin="0,4"
-                     Foreground="{StaticResource TextBrush}">
+                     Foreground="{DynamicResource TextBrush}">
             <StackPanel>
                 <TextBlock Text="Simülasyon" FontSize="13"/>
                 <TextBlock Text="7 düğümlü MVP ağı, kendi kendine üretilen canlı veri"
-                           FontSize="10.5" Foreground="{StaticResource MutedBrush}"/>
+                           FontSize="10.5" Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
         </RadioButton>
 
         <RadioButton x:Name="ModeSnap" GroupName="src" Margin="0,4"
-                     Foreground="{StaticResource TextBrush}">
+                     Foreground="{DynamicResource TextBrush}">
             <StackPanel>
                 <TextBlock Text="Snapshot" FontSize="13"/>
                 <TextBlock x:Name="SnapInfo" Text="Tam ağ anlık görüntü dosyası"
-                           FontSize="10.5" Foreground="{StaticResource MutedBrush}"/>
+                           FontSize="10.5" Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
         </RadioButton>
 
         <RadioButton x:Name="ModeLive" GroupName="src" Margin="0,4"
-                     Foreground="{StaticResource TextBrush}">
+                     Foreground="{DynamicResource TextBrush}">
             <StackPanel>
                 <TextBlock Text="Canlı" FontSize="13"/>
                 <TextBlock x:Name="LiveInfo" Text="Canlı telemetri endpoint'i (topoloji snapshot dosyasından)"
-                           FontSize="10.5" Foreground="{StaticResource MutedBrush}"/>
+                           FontSize="10.5" Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
         </RadioButton>
 
-        <TextBlock Text="Canlı adres" FontSize="11" Foreground="{StaticResource MutedBrush}"
+        <TextBlock Text="Canlı adres" FontSize="11" Foreground="{DynamicResource MutedBrush}"
                    Margin="24,6,0,2"/>
         <TextBox x:Name="LiveUrlBox" Margin="24,0,0,0" Padding="6,4" FontSize="12"
-                 Background="{StaticResource CardBrush}" Foreground="{StaticResource TextBrush}"
-                 BorderBrush="{StaticResource StrokeBrush}"/>
+                 Background="{DynamicResource CardBrush}" Foreground="{DynamicResource TextBrush}"
+                 BorderBrush="{DynamicResource StrokeBrush}"/>
 
         <RadioButton x:Name="ModeHub" GroupName="src" Margin="0,4"
-                     Foreground="{StaticResource TextBrush}">
+                     Foreground="{DynamicResource TextBrush}">
             <StackPanel>
                 <TextBlock Text="API Hub" FontSize="13"/>
                 <TextBlock Text="Kişi 2'nin FastAPI + MQTT hub'ı (HTTP yoklama)"
-                           FontSize="10.5" Foreground="{StaticResource MutedBrush}"/>
+                           FontSize="10.5" Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
         </RadioButton>
 
-        <TextBlock Text="Hub adresi" FontSize="11" Foreground="{StaticResource MutedBrush}"
+        <TextBlock Text="Hub adresi" FontSize="11" Foreground="{DynamicResource MutedBrush}"
                    Margin="24,6,0,2"/>
         <TextBox x:Name="HubUrlBox" Margin="24,0,0,0" Padding="6,4" FontSize="12"
-                 Background="{StaticResource CardBrush}" Foreground="{StaticResource TextBrush}"
-                 BorderBrush="{StaticResource StrokeBrush}"/>
+                 Background="{DynamicResource CardBrush}" Foreground="{DynamicResource TextBrush}"
+                 BorderBrush="{DynamicResource StrokeBrush}"/>
+
+        <Border BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,12,0,0">
+            <StackPanel>
+                <TextBlock Text="GÖRÜNÜM" FontSize="10" FontWeight="Bold"
+                           Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,6"/>
+                <CheckBox x:Name="LightThemeBox" Content="Açık tema" Foreground="{DynamicResource TextBrush}"
+                          Checked="Theme_Changed" Unchecked="Theme_Changed"/>
+            </StackPanel>
+        </Border>
 
         <TextBlock x:Name="ErrorText" Foreground="#E74C3C" FontSize="11"
                    Margin="0,10,0,0" Visibility="Collapsed" TextWrapping="Wrap"/>

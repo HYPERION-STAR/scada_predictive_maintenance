@@ -34,12 +34,14 @@ Tags: **[QW]** quick win (minutes), **[M]** medium (an hour or two), **[B]** big
   buttons ease-zoom to a region); double-click still resets, both gestures coexist
 - §4 sensor-row indicators — small color dots (TempBrush/PresBrush/VibBrush) before
   Sıcaklık/Basınç/Titreşim on the machine cards (color-dot take instead of glyphs)
+- §2 **light theme — DONE** (`ThemeManager`): full dark/light switch. 8 theme
+  brushes + shadow swapped via DynamicResource; `PipelineMapControl.ApplyTheme`
+  themes sea/land/neighbor/coast/labels/tooltip/flow-dash/sheen (flow dashes go
+  dark on light so they stay visible); persisted in settings + "Açık tema"
+  checkbox with live preview; DWM title bar follows the theme. Semantic
+  health/sensor colors stay identical in both.
 
 **⏳ Deferred — genuinely blocked, not skipped (with reasons):**
-- §2 light theme — the map control is tuned entirely for a dark base (hardcoded
-  flow gradients, health colors, sea/land shades chosen for #0F1620); a light
-  variant is a self-contained project that would regress quality if rushed. Do as
-  its own task. **This is the one remaining "work, not a blocker" item.**
 - §5 threshold line in MiniChart — needs per-sensor nominal bands, which come with
   Kişi 4's DB `predictions`; no threshold data exists yet to draw
 - §9 colorblind coding — node *types* are now shape-coded (circle/cylinder/diamond/

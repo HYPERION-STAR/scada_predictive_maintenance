@@ -135,14 +135,15 @@ public sealed class PipelineMapControl : Control
     private double _pkW, _pkH, _pkZoom = 1, _pkPanX, _pkPanY;
 
     // Deniz alanlari (lat/lon [lon,lat] halkalari): kara zemininden "su" oyar.
-    // Turkiye ustte cizildiginden fazla tasan kenarlar Turkiye altinda kalir;
-    // komsu-tarafi duz kenarlar sadelestirilmis kiyi cizgisi olur.
+    // Kara (Turkiye) tarafi kenarlar bilerek kiyinin icine tasar ki deniz ile
+    // kara arasinda bosluk kalmasin; Turkiye ustte cizildiginden fazlalik kapanir.
+    // Denizler birbiriyle serbestce ortusur (BuildRoundedRingGeometry Nonzero ile birlestirir).
     private static readonly double[][][] SeaPolys =
     {
-        new[]{ new[]{27.6,41.3}, new[]{42.6,41.3}, new[]{42.6,50.0}, new[]{27.6,50.0} }, // Karadeniz
-        new[]{ new[]{23.2,32.5}, new[]{27.3,32.5}, new[]{27.3,40.8}, new[]{23.2,40.8} }, // Ege
-        new[]{ new[]{25.8,23.0}, new[]{37.3,23.0}, new[]{37.3,36.5}, new[]{25.8,36.5} }, // Akdeniz
-        new[]{ new[]{26.3,40.1}, new[]{29.9,40.1}, new[]{29.9,41.5}, new[]{26.3,41.5} }, // Marmara
+        new[]{ new[]{26.3,40.0}, new[]{43.4,40.0}, new[]{43.4,50.0}, new[]{26.3,50.0} }, // Karadeniz
+        new[]{ new[]{23.2,32.5}, new[]{28.7,32.5}, new[]{28.7,41.3}, new[]{23.2,41.3} }, // Ege
+        new[]{ new[]{25.8,23.0}, new[]{37.8,23.0}, new[]{37.8,37.8}, new[]{25.8,37.8} }, // Akdeniz
+        new[]{ new[]{25.8,39.6}, new[]{30.4,39.6}, new[]{30.4,41.9}, new[]{25.8,41.9} }, // Marmara
     };
 
     // Turkiye sinirindan disari giden komsu sinir cizgileri (lat/lon [lon,lat] ciftleri).
@@ -267,13 +268,28 @@ public sealed class PipelineMapControl : Control
                 || _pkZoom != _zoom || _pkPanX != _panX || _pkPanY != _panY)
             {
                 _provGeo = BuildRingGeometry(TurkeyMap.Provinces.SelectMany(p => p.Rings), project);
-                _seaGeo = BuildRingGeometry(SeaPolys, project);
+                // Deniz bloklari: kose yuvarlatmayla yumusatilir (dikdortgen his kalkar);
+                // Turkiye sinirlari keskin kalir -> dusuk detayli kiyi korunur.
+                _seaGeo = BuildRoundedRingGeometry(SeaPolys, project, 22 * _zoom);
                 _pkW = w; _pkH = h; _pkZoom = _zoom; _pkPanX = _panX; _pkPanY = _panY;
             }
 
             // Denizler: kara zemininden su (mavi) oyar -> kiyilar belirir.
+            // Once yumusak "feather": genisleyen soluk deniz halkalari, deniz ile komsu
+            // karayi sert kenar yerine gradyan gecisle kaynastirir (kaynasik gorunum);
+            // sonra tam dolgu. Turkiye ustte cizildiginden kendi kiyisi keskin kalir,
+            // komsu-tarafi duz sinir cizgileri (DividerLines) sonra ciziip korunur.
             if (_seaGeo != null)
+            {
+                for (int i = 6; i >= 1; i--)
+                {
+                    var feather = new Pen(new SolidColorBrush(Color.FromArgb((byte)(48 - i * 6), Sea.R, Sea.G, Sea.B)),
+                                          i * 9 * Math.Clamp(_zoom, 0.75, 1.8))
+                        { LineJoin = PenLineJoin.Round };
+                    dc.DrawGeometry(null, feather, _seaGeo);
+                }
                 dc.DrawGeometry(new SolidColorBrush(Sea), null, _seaGeo);
+            }
 
             // Komsu sinir cizgileri: Turkiye'den disari giden duz cizgiler.
             if (_showProvinces)
@@ -578,6 +594,49 @@ public sealed class PipelineMapControl : Control
                 for (int i = 1; i < ring.Length; i++)
                     pts.Add(project(ring[i][1], ring[i][0]));
                 ctx.PolyLineTo(pts, true, false);
+            }
+        }
+        geo.Freeze();
+        return geo;
+    }
+
+    // BuildRingGeometry gibi ama her koseyi 'radius' piksel yaricapinda kavise cevirir
+    // (quadratik bezier). Blok/dikdortgen denizleri yumusatir; komsu-tarafi duz kenarlar
+    // kalir ama sert 90° koseler kaybolur. Turkiye sinirlari icin kullanilmaz.
+    private static Geometry BuildRoundedRingGeometry(IEnumerable<double[][]> rings, Func<double, double, Point> project, double radius)
+    {
+        // Nonzero: ust uste binen deniz halkalari delik acmadan birlesir.
+        var geo = new StreamGeometry { FillRule = FillRule.Nonzero };
+        using (var ctx = geo.Open())
+        {
+            foreach (var ring in rings)
+            {
+                if (ring.Length < 3) continue;
+                int n = ring.Length;
+                var pts = new Point[n];
+                for (int i = 0; i < n; i++) pts[i] = project(ring[i][1], ring[i][0]);
+
+                // Her kose icin giris (onceki kenardan) ve cikis (sonraki kenara) noktasi;
+                // yaricap komsu kenarin yarisini asamaz (kisa kenarda tasmayi onler).
+                var starts = new Point[n];
+                var ends = new Point[n];
+                for (int i = 0; i < n; i++)
+                {
+                    var cur = pts[i];
+                    var toPrev = pts[(i - 1 + n) % n] - cur;
+                    var toNext = pts[(i + 1) % n] - cur;
+                    double lp = Math.Max(1e-6, toPrev.Length), ln = Math.Max(1e-6, toNext.Length);
+                    starts[i] = cur + toPrev * (Math.Min(radius, lp / 2) / lp);
+                    ends[i] = cur + toNext * (Math.Min(radius, ln / 2) / ln);
+                }
+
+                ctx.BeginFigure(ends[0], true, true);
+                for (int i = 1; i <= n; i++)
+                {
+                    int idx = i % n;
+                    ctx.LineTo(starts[idx], true, false);          // duz kenar
+                    ctx.QuadraticBezierTo(pts[idx], ends[idx], true, false); // yumusak kose
+                }
             }
         }
         geo.Freeze();

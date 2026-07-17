@@ -28,6 +28,12 @@ public sealed class AppSettings
     /// <summary>Canlı telemetri endpoint'i (Canli modu; topoloji yine snapshot dosyasından).</summary>
     public string LiveUrl { get; set; } = "http://100.114.223.5:8000/api/scada/live_data";
 
+    /// <summary>Canlı yoklama aralığı (saniye) — ScadaClient PollIntervalSeconds'a geçer.</summary>
+    public int PollIntervalSeconds { get; set; } = 5;
+
+    /// <summary>Canlı HTTP istek zaman aşımı (saniye) — ScadaClient TimeoutSeconds'a geçer.</summary>
+    public int TimeoutSeconds { get; set; } = 15;
+
     private static string PathFor() =>
         System.IO.Path.Combine(AppContext.BaseDirectory, "settings.json");
 

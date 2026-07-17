@@ -23,6 +23,9 @@ public class SnapshotSource : IPipelineSource
     // Telemetri değiştirilebilir: statik dosyada sabit, canlı kaynakta her tick yenilenir.
     private IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> _telemetry;
 
+    // Varlık başına telemetri kalitesi (canlı kaynakta sunucudan; dosyada boş).
+    private IReadOnlyDictionary<string, string> _quality = new Dictionary<string, string>();
+
     public SnapshotSource(SnapshotData data)
     {
         _data = data;
@@ -32,12 +35,55 @@ public class SnapshotSource : IPipelineSource
 
     public virtual void Tick() { } // statik anlık görüntü — zaman ilerlemez
 
-    /// <summary>Telemetriyi atomik olarak değiştirir (canlı kaynak her tick çağırır).</summary>
-    protected void SetTelemetry(IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> telemetry)
-        => _telemetry = telemetry;
+    /// <summary>Telemetriyi + kaliteyi atomik olarak değiştirir (canlı poll her turda çağırır).</summary>
+    protected void SetTelemetry(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> telemetry,
+        IReadOnlyDictionary<string, string> quality)
+    {
+        _telemetry = telemetry;
+        _quality = quality;
+    }
+
+    /// <summary>
+    /// Az sayıda varlığın telemetri+kalitesini mevcut haritanın üzerine bindirir —
+    /// canlı B ucundan (/node/{id}) gelen taze düğüm telemetrisi için (bir sonraki
+    /// poll'a kadar tazedir). Boş bindirme yok sayılır. Referans takası atomiktir;
+    /// eşzamanlı bir poll ile nadir yarış kendi kendini bir sonraki turda düzeltir.
+    /// </summary>
+    protected void MergeTelemetry(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> overlay,
+        IReadOnlyDictionary<string, string> quality)
+    {
+        if (overlay.Count == 0) return;
+        var mergedTel = new Dictionary<string, IReadOnlyDictionary<string, double>>(_telemetry);
+        foreach (var kv in overlay) mergedTel[kv.Key] = kv.Value;
+        var mergedQ = new Dictionary<string, string>(_quality);
+        foreach (var kv in quality) mergedQ[kv.Key] = kv.Value;
+        _telemetry = mergedTel;
+        _quality = mergedQ;
+    }
 
     private IReadOnlyDictionary<string, double>? Telem(string id) =>
         _telemetry.TryGetValue(SnapshotLoader.Norm(id), out var t) ? t : null;
+
+    /// <summary>
+    /// İstasyonun telemetri kalitesi: ünitelerinden HERHANGİ biri GOOD değilse o
+    /// şüpheli durumu (WARNING/BAD/…) döndürür — kalite entity başına bir sinyaldir,
+    /// sağlık proxy'sinden (titreşim sıralaması) bağımsızdır. Hepsi GOOD ise "GOOD",
+    /// hiç kalite bilgisi yoksa "" (dosya yolunda boş). Canlı kaynakta sunucudan gelir.
+    /// </summary>
+    public string StationDataQuality(string stationId)
+    {
+        if (!_data.StationUnits.TryGetValue(stationId, out var units)) return "";
+        string seen = "";
+        foreach (var u in units)
+        {
+            if (!_quality.TryGetValue(SnapshotLoader.Norm(u.Id), out var q) || q.Length == 0) continue;
+            if (!q.Equals("GOOD", StringComparison.OrdinalIgnoreCase)) return q; // ilk şüpheli → uyar
+            seen = q; // en az bir GOOD görüldü
+        }
+        return seen;
+    }
 
     // Titreşimden proxy sağlık (2 mm/s → %100, 9 mm/s → %0).
     private static double VibHealth(double vib) =>

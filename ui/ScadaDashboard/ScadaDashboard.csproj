@@ -25,4 +25,10 @@
     <EmbeddedResource Include="Pipeline\turkey.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Kisi 2'nin resmi API istemcisi: /live_data poll (LiveDataService) +
+         /node/{id} (ScadaApiClient). Canli veri yolu bu istemciden gecer. -->
+    <ProjectReference Include="..\..\ScadaClient\ScadaClient.csproj" />
+  </ItemGroup>
+
 </Project>

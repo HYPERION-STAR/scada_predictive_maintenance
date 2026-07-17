@@ -70,9 +70,9 @@ public partial class MapWindow : Window
         {
             src = snap; label = "SNAPSHOT";
         }
-        else if (s.SourceMode == Services.SourceMode.Canli
-                 && snapshotPath != null && s.LiveUrl.Length > 0
-                 && TryLoadLive(snapshotPath, s.LiveUrl, out var live))
+        else if (s.SourceMode == Services.SourceMode.Canli && s.LiveUrl.Length > 0
+                 && (TryLoadApiLive(s.LiveUrl, s, out var live)
+                     || (snapshotPath != null && TryLoadLive(snapshotPath, s.LiveUrl, s, out live))))
         {
             src = live; label = "CANLI";
         }
@@ -85,8 +85,9 @@ public partial class MapWindow : Window
         {
             var liveUrl = Environment.GetEnvironmentVariable("SCADA_LIVE_URL");
             var hub = Environment.GetEnvironmentVariable("SCADA_HUB_URL");
-            if (!string.IsNullOrWhiteSpace(liveUrl) && snapshotPath != null
-                && TryLoadLive(snapshotPath, liveUrl, out var liveAuto))
+            if (!string.IsNullOrWhiteSpace(liveUrl)
+                && (TryLoadApiLive(liveUrl, s, out var liveAuto)
+                    || (snapshotPath != null && TryLoadLive(snapshotPath, liveUrl, s, out liveAuto))))
             {
                 src = liveAuto; label = "CANLI";
             }
@@ -105,6 +106,9 @@ public partial class MapWindow : Window
                 src = new PipelineSimulator(); label = "SİMÜLASYON";
             }
         }
+
+        // Eski kaynagi kapat (ör. canli kaynagin ScadaClient yoklama dongusu durur).
+        if (!ReferenceEquals(_source, src) && _source is IDisposable old) old.Dispose();
 
         _source = src;
         SourceLabel.Text = $"  •  Veri kaynağı: {label}";
@@ -167,17 +171,41 @@ public partial class MapWindow : Window
         }
     }
 
-    // Canli kaynak: topolojiyi snapshot dosyasindan al, telemetriyi canli
-    // endpoint'ten cek. Dosya/URL bozuksa sessizce diger kaynaklara dusulur.
-    private static bool TryLoadLive(string path, string url, out LiveSnapshotSource source)
+    // Canli kaynak (API topolojisi): topolojiyi /nodes + /segments + /node/{id}
+    // uclarindan kur; telemetriyi ScadaClient (LiveDataService) kendi dongusunde
+    // /live_data'dan ceker. Ayni sunucu oldugu icin id'ler birebir hizali
+    // (snapshot dosyasi gerekmez). API kapaliysa false.
+    private static bool TryLoadApiLive(string liveUrl, Services.AppSettings s, out LiveSnapshotSource source)
+    {
+        try
+        {
+            var baseUrl = new Uri(liveUrl).GetLeftPart(UriPartial.Authority);
+            // Yüklemeyi havuz thread'inde çalıştır: UI thread'inde bloklu await deadlock'unu önler.
+            var data = Task.Run(() => ApiSnapshotLoader.Load(baseUrl)).GetAwaiter().GetResult();
+            if (data.Nodes.Count == 0) { source = null!; return false; }
+            PipelineTopology.Load(data.Nodes, data.Segments);
+            // poll aralığı + zaman aşımı ayarlardan geçer (istemci yoklamayi kendisi baslatir)
+            source = new LiveSnapshotSource(data, baseUrl, s.PollIntervalSeconds, s.TimeoutSeconds);
+            return true;
+        }
+        catch
+        {
+            source = null!;
+            return false;
+        }
+    }
+
+    // Canli kaynak (snapshot topolojisi, yedek): topolojiyi snapshot dosyasindan al,
+    // telemetriyi canli endpoint'ten cek. Dosya/URL bozuksa sessizce dusulur.
+    private static bool TryLoadLive(string path, string url, Services.AppSettings s, out LiveSnapshotSource source)
     {
         try
         {
             var data = SnapshotLoader.Load(path);
             if (data.Nodes.Count == 0) { source = null!; return false; }
             PipelineTopology.Load(data.Nodes, data.Segments);
-            source = new LiveSnapshotSource(data, url);
-            source.Tick(); // ilk canli cekisi hemen baslat (dosya telemetrisi son iyi deger)
+            var baseUrl = new Uri(url).GetLeftPart(UriPartial.Authority);
+            source = new LiveSnapshotSource(data, baseUrl, s.PollIntervalSeconds, s.TimeoutSeconds);
             return true;
         }
         catch
@@ -269,11 +297,28 @@ public partial class MapWindow : Window
             UpdateDetail();
             UpdateSensorList(n.Id);
             SelectedInfo.Text = $"{n.Id}  {n.Name}";
+
+            // Canli kaynak: B ucundan NodeDetail'i talep uzerine getir — sunucunun
+            // yetkili saglik durumunu goster + varsa taze dugum telemetrisini bindir.
+            // Fire-and-forget; sonuc UI thread'ine doner.
+            DetailServerHealth.Visibility = Visibility.Collapsed;
+            if (_source is LiveSnapshotSource live) _ = ShowServerHealthAsync(live, n.Id);
         }
         else
         {
             SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme dışı)";
         }
+    }
+
+    // Sunucunun yetkili health_state'ini canli B ucundan getirip detay panelinde
+    // gosterir. Sonuc gelene kadar baska dugum secildiyse (veya panel kapandiysa)
+    // yoksayilir. Bos/hata → gizli kalir, UI titresim proxy'sine guvenir.
+    private async Task ShowServerHealthAsync(LiveSnapshotSource live, string nodeId)
+    {
+        string? state = await live.FetchNodeDetailAsync(nodeId);
+        if (_selected != nodeId || string.IsNullOrWhiteSpace(state)) return;
+        DetailServerHealth.Text = $"Sunucu değerlendirmesi: {state}";
+        DetailServerHealth.Visibility = Visibility.Visible;
     }
 
     // Detay panelini sagdan kayarak + belirerek ac (zaten acisa animasyon yok).
@@ -331,6 +376,15 @@ public partial class MapWindow : Window
           : snap.Health >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
           : snap.Health >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
           : Color.FromRgb(0xE7, 0x4C, 0x3C));
+
+        // Telemetri kalitesi (canli kaynakta sunucudan): yalnizca GOOD disi durumda uyar.
+        string quality = (_source as SnapshotSource)?.StationDataQuality(_selected) ?? "";
+        if (quality.Length > 0 && !quality.Equals("GOOD", StringComparison.OrdinalIgnoreCase))
+        {
+            DetailQuality.Text = $"⚠ Telemetri kalitesi: {quality}";
+            DetailQuality.Visibility = Visibility.Visible;
+        }
+        else DetailQuality.Visibility = Visibility.Collapsed;
     }
 
     // 21 kompresor sensoru: anahtar -> (Turkce ad, birim). Bilinmeyene jenerik ad.

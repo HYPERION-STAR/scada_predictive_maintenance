@@ -122,6 +122,14 @@
                         <TextBlock x:Name="DetailStatus" FontSize="13" FontWeight="Bold" Foreground="#0F1620"/>
                     </Border>
 
+                    <!-- Canli modda sunucunun yetkili degerlendirmesi (B ucu health_state); proxy'den ayri gosterilir -->
+                    <TextBlock x:Name="DetailServerHealth" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Foreground="{DynamicResource MutedBrush}" Visibility="Collapsed"/>
+
+                    <!-- Telemetri kalitesi (TelemetryBase.Quality); yalnizca GOOD disi durumda uyari olarak -->
+                    <TextBlock x:Name="DetailQuality" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"
+                               Foreground="#E67E22" Visibility="Collapsed"/>
+
                     <Grid Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

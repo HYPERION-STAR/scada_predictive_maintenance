@@ -33,11 +33,10 @@ public partial class SettingsWindow : Window
             : "Snapshot dosyası bulunamadı (*live_snapshot.json)";
         ModeSnap.IsEnabled = snapshotPath != null;
 
-        // Canlı da topolojiyi snapshot dosyasından alır; dosya yoksa seçilemez.
-        LiveInfo.Text = snapshotPath != null
-            ? $"Canlı telemetri; topoloji: {System.IO.Path.GetFileName(snapshotPath)}"
-            : "Canlı için snapshot topoloji dosyası gerekli (bulunamadı)";
-        ModeLive.IsEnabled = snapshotPath != null;
+        // Canlı: topoloji API'den (/nodes + /segments), telemetri /live_data'dan.
+        // API erişilemezse snapshot dosyasına düşer; her koşulda seçilebilir.
+        LiveInfo.Text = "Telemetri + topoloji canlı API'den (/nodes, /segments, /live_data)";
+        ModeLive.IsEnabled = true;
     }
 
     private void Apply_Click(object sender, RoutedEventArgs e)

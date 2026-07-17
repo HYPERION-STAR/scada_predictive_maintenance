@@ -1,61 +1,89 @@
 using System.Net.Http;
-using System.Text.Json;
+using Microsoft.Extensions.Options;
+using ScadaClient.Options;
+using ScadaClient.Parsing;
+using ScadaClient.Services;
 
 namespace ScadaDashboard.Pipeline;
 
 /// <summary>
-/// Canlı telemetri kaynağı. Topolojiyi (düğüm/segment/koordinat/ünite) statik
-/// snapshot dosyasından BİR KEZ alır; her Tick()'te canlı endpoint'ten düz
-/// entity→sensör JSON'unu çekip telemetriyi tazeler. Sağlık/RUL/akış/sızıntı
-/// türetme mantığı SnapshotSource ile aynıdır (proxy) — yalnızca sayılar canlıdır.
+/// Canlı telemetri kaynağı — veri yolu Kişi 2'nin resmi istemcisi (ScadaClient):
+/// LiveDataService arka planda /api/scada/live_data'yı yoklar (PollIntervalSeconds),
+/// SnapshotReceived olayı tipli DTO'ları getirir; TelemetryAdapter bunları UI'ın
+/// sensör sözlüğüne çevirir ve telemetri atomik değiştirilir. Topoloji
+/// (düğüm/segment/koordinat/ünite) kurucuya dışarıdan verilir (API veya dosya).
 ///
-/// Endpoint sözleşmesi — GET {url} şunu döndürür (entity_id ile anahtarlı düz sözlük):
-/// {
-///   "CS-ANKARA-U1":       { "entity_id":"CS-ANKARA-U1", "s_7_vibration_de_mm_s":5.4, ... },
-///   "SEG-SIVAS-ERZINCAN": { "entity_id":"SEG-SIVAS-ERZINCAN", "s_flow_m3_h":432135, "s_mass_imbalance_pct":0.6, ... }
-/// }
-/// (Aynı sensör anahtarları statik snapshot'ın telemetry bölümüyle birebir aynıdır.)
-///
-/// Endpoint erişilemezse SON İYİ telemetri korunur; ilk çekiş gelene kadar
-/// snapshot dosyasındaki telemetri gösterilir. Böylece harita her koşulda çalışır.
+/// Sağlık/RUL/akış/sızıntı türetme mantığı SnapshotSource ile aynıdır (proxy).
+/// Endpoint erişilemezse istemci turu atlar, SON İYİ telemetri korunur —
+/// harita her koşulda çalışır. Kaynak değişiminde Dispose() yoklamayı durdurur.
 /// </summary>
-public sealed class LiveSnapshotSource : SnapshotSource
+public sealed class LiveSnapshotSource : SnapshotSource, IDisposable
 {
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(3) };
-    private readonly string _url;
+    private readonly ScadaApiClient _api;      // HttpClient'ın sahibi
+    private readonly LiveDataService _service; // arka plan yoklayıcı (istemcinin tasarımı)
+    private readonly NodeDetailClient _detail; // talep üzerine B ucu (/node/{id})
 
-    public LiveSnapshotSource(SnapshotData topology, string url) : base(topology) => _url = url;
+    public LiveSnapshotSource(
+        SnapshotData topology, string baseUrl,
+        int pollSeconds = 5, int timeoutSeconds = 15) : base(topology)
+    {
+        // İstemcinin tüm seçenekleri (BaseUrl + poll aralığı + zaman aşımı) uygulama
+        // ayarlarından beslenir — hiçbiri artık sabit kodlu değil.
+        var opt = new ScadaApiOptions
+        {
+            BaseUrl = baseUrl,
+            PollIntervalSeconds = pollSeconds,
+            TimeoutSeconds = timeoutSeconds,
+        };
+        var http = new HttpClient
+        {
+            BaseAddress = new Uri(opt.BaseUrl),
+            Timeout = TimeSpan.FromSeconds(opt.TimeoutSeconds),
+        };
+        _api = new ScadaApiClient(http, new ScadaJsonParser());
+        _detail = new NodeDetailClient(_api);
+        // İstemcinin kendi günlüğünü diske al (poll'un istemci üzerinden çalıştığı
+        // çalışma anında görünür olsun; hata turları da yakalanır).
+        var log = new FileLogger<LiveDataService>(
+            System.IO.Path.Combine(AppContext.BaseDirectory, "scadaclient.log"));
+        _service = new LiveDataService(_api, Options.Create(opt), log);
+        _service.SnapshotReceived += live =>
+        {
+            var maps = TelemetryAdapter.ToSensorMaps(live);
+            SetTelemetry(maps.Values, maps.Quality); // değerler + kalite birlikte
+        };
+        _ = _service.StartAsync(CancellationToken.None); // ilk çekiş hemen, sonra periyodik
+    }
 
-    // UI ~saniyede bir çağırır; canlı çekişi tetikler (fire-and-forget).
-    public override void Tick() => _ = FetchAsync();
+    // Tick() kasıtlı override edilmez: yoklamayı UI değil LiveDataService zamanlar.
 
-    private async Task FetchAsync()
+    /// <summary>
+    /// Talep üzerine B ucunu (/api/scada/node/{id}) çeker — haritada bir düğüme
+    /// tıklanınca. Tek çağrıda NodeDetail'in TAMAMI tüketilir:
+    ///   • health_state → sunucunun yetkili sağlık değerlendirmesi (döner)
+    ///   • telemetry     → varsa taze düğüm telemetrisi canlı haritaya bindirilir
+    ///                     (sunucu genelde boş [] gönderir; doluysa poll'dan tazedir)
+    /// Canlı poll (/live_data) health_state taşımaz; yalnız bu uçta gelir. Hata/boşsa
+    /// null döner ve UI titreşim proxy'sine düşer. Bloklamaz — çağıran await eder.
+    /// </summary>
+    public async Task<string?> FetchNodeDetailAsync(string nodeId)
     {
         try
         {
-            await using var s = await _http.GetStreamAsync(_url);
-            using var doc = await JsonDocument.ParseAsync(s);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object) return;
-
-            var telemetry = new Dictionary<string, IReadOnlyDictionary<string, double>>();
-            foreach (var entity in doc.RootElement.EnumerateObject())
+            var d = await _detail.LoadAsync(nodeId);
+            if (d.Telemetry.Count > 0)
             {
-                if (entity.Value.ValueKind != JsonValueKind.Object) continue;
-
-                var vals = new Dictionary<string, double>();
-                foreach (var p in entity.Value.EnumerateObject())
-                    if (p.Value.ValueKind == JsonValueKind.Number)
-                        vals[p.Name] = p.Value.GetDouble();
-
-                // Hem sözlük anahtarı hem entity_id ile eriş (SnapshotLoader ile aynı kural).
-                telemetry[SnapshotLoader.Norm(entity.Name)] = vals;
-                if (entity.Value.TryGetProperty("entity_id", out var eid)
-                    && eid.ValueKind == JsonValueKind.String)
-                    telemetry[SnapshotLoader.Norm(eid.GetString()!)] = vals;
+                var maps = TelemetryAdapter.ToSensorMaps(d.Telemetry);
+                MergeTelemetry(maps.Values, maps.Quality);
             }
-
-            SetTelemetry(telemetry); // atomik referans değişimi
+            return string.IsNullOrWhiteSpace(d.HealthState) ? null : d.HealthState;
         }
-        catch { /* endpoint yoksa son iyi telemetriyi koru */ }
+        catch { return null; } // uç erişilemez/id yok — proxy'ye düş
+    }
+
+    public void Dispose()
+    {
+        _service.Dispose(); // yoklama döngüsünü iptal eder (BackgroundService)
+        _api.Dispose();
     }
 }

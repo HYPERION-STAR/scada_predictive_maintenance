@@ -92,7 +92,6 @@ public sealed class PipelineMapControl : Control
         new("YUNANİSTAN", 39.7, 22.2, GeoKind.Country),
         new("GÜRCİSTAN", 42.4, 43.4, GeoKind.Country),
         new("ERMENİSTAN", 40.2, 45.4, GeoKind.Country),
-        new("NAHÇIVAN", 39.3, 45.5, GeoKind.Country),
         new("İRAN", 37.8, 45.9, GeoKind.Country),
         new("IRAK", 35.4, 43.9, GeoKind.Country),
         new("SURİYE", 35.1, 38.6, GeoKind.Country),
@@ -530,7 +529,9 @@ public sealed class PipelineMapControl : Control
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)), null, body);
                 double lvl = n.Type == "OILDEPO" ? 100 : Math.Clamp(_source?.Level(n.Id) ?? 0, 0, 100);
                 double fh = body.Height * lvl / 100.0;
-                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(200, col.R, col.G, col.B)), null,
+                // Petrol deposu: seffaf dolgu (icine dolu boyanmaz); gaz UGS: doluluk kadar dolu.
+                byte fillA = n.Type == "OILDEPO" ? (byte)48 : (byte)200;
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(fillA, col.R, col.G, col.B)), null,
                     new Rect(body.X, body.Bottom - fh, body.Width, fh));
                 var pen = new Pen(colBrush, Math.Max(1, 1.6 * nodeScale));
                 dc.DrawRectangle(null, pen, body);

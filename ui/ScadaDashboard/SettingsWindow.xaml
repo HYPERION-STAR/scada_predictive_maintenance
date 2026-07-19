@@ -40,6 +40,15 @@
             </StackPanel>
         </RadioButton>
 
+        <RadioButton x:Name="ModeLocal" GroupName="src" Margin="0,4"
+                     Foreground="{DynamicResource TextBrush}">
+            <StackPanel>
+                <TextBlock Text="Yerel Veri (topoloji)" FontSize="13"/>
+                <TextBlock x:Name="LocalInfo" Text="Çıkarılan yerel topoloji (scada_nodes.json + scada_segments.json)"
+                           FontSize="10.5" Foreground="{DynamicResource MutedBrush}"/>
+            </StackPanel>
+        </RadioButton>
+
         <RadioButton x:Name="ModeLive" GroupName="src" Margin="0,4"
                      Foreground="{DynamicResource TextBrush}">
             <StackPanel>

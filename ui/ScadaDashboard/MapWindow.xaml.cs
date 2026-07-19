@@ -43,7 +43,8 @@ public partial class MapWindow : Window
                 _source.Tick();
                 Clock.Text = DateTime.Now.ToString("dd.MM.yyyy  HH:mm:ss");
                 UpdateAlarms();
-                if (_selected != null) UpdateDetail();
+                // Sadece gaz istasyonu paneli periyodik tazelenir; pompa paneli statiktir.
+                if (_selected != null && PipelineTopology.NodeById(_selected) is { IsStation: true }) UpdateDetail();
             }
             if (AlarmBox.Visibility == Visibility.Visible)   // yanip sonme
                 AlarmBox.Opacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.Sin(Environment.TickCount / 250.0));
@@ -69,6 +70,10 @@ public partial class MapWindow : Window
                  && snapshotPath != null && TryLoadSnapshot(snapshotPath, out var snap))
         {
             src = snap; label = "SNAPSHOT";
+        }
+        else if (s.SourceMode == Services.SourceMode.YerelVeri && TryLoadLocalData(out var local))
+        {
+            src = local; label = "YEREL VERİ";
         }
         else if (s.SourceMode == Services.SourceMode.Canli && s.LiveUrl.Length > 0
                  && (TryLoadApiLive(s.LiveUrl, s, out var live)
@@ -127,7 +132,7 @@ public partial class MapWindow : Window
     // Ayarlar penceresi: kaynak degisirse aninda uygula.
     private void OpenSettings_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new SettingsWindow(_settings, FindSnapshotFile()) { Owner = this };
+        var dlg = new SettingsWindow(_settings, FindSnapshotFile(), FindLocalDataFiles() != null) { Owner = this };
         if (dlg.ShowDialog() == true)
         {
             _settings = dlg.Result;
@@ -150,6 +155,42 @@ public partial class MapWindow : Window
             if (hits.Length > 0) return hits[0].FullName;
         }
         return null;
+    }
+
+    // Yerel cikarilan topoloji dosyalarini bul: exe klasorunden yukari dogru
+    // scada_nodes.json + scada_segments.json (ikisi de repo kokunde, git disi).
+    private static (string Nodes, string Segments)? FindLocalDataFiles()
+    {
+        var dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+        {
+            var n = System.IO.Path.Combine(dir.FullName, "scada_nodes.json");
+            var s = System.IO.Path.Combine(dir.FullName, "scada_segments.json");
+            if (System.IO.File.Exists(n) && System.IO.File.Exists(s)) return (n, s);
+        }
+        return null;
+    }
+
+    // Yerel cikarilan topolojiyi yukle (yalniz topoloji; telemetri yok). Dosya
+    // yoksa/bozuksa false -> ApplySource otomatige duser.
+    private static bool TryLoadLocalData(out SnapshotSource source)
+    {
+        source = null!;
+        var files = FindLocalDataFiles();
+        if (files == null) return false;
+        try
+        {
+            var data = LocalTopologyLoader.Load(files.Value.Nodes, files.Value.Segments);
+            if (data.Nodes.Count == 0) return false;
+            PipelineTopology.Load(data.Nodes, data.Segments);
+            source = new SnapshotSource(data);
+            return true;
+        }
+        catch
+        {
+            source = null!;
+            return false;
+        }
     }
 
     // Snapshot'i yukle; topolojiyi tam agla degistir. Bozuk dosyada sessizce
@@ -286,28 +327,65 @@ public partial class MapWindow : Window
 
     private void OnNodeClicked(PNode n)
     {
+        // Haritadaki gibi iki istasyon türü tıklanabilir: gaz kompresör (IsStation,
+        // sağlık/sensör paneli) ve ham petrol pompa/terminal (kimlik + bağlı hatlar).
+        bool pump = n.Type is "PS" or "PT" or "OILDEPO";
+        if (!n.IsStation && !pump)
+        {
+            SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme dışı)";
+            return;
+        }
+
+        _selected = n.Id;
+        Map.SelectedId = n.Id; // haritada secim halkasi
+        DetailId.Text = n.Id;
+        DetailName.Text = n.Name;
+        HealthPanel.Visibility = n.IsStation ? Visibility.Visible : Visibility.Collapsed;
+        PumpPanel.Visibility = pump ? Visibility.Visible : Visibility.Collapsed;
+
         if (n.IsStation)
         {
-            _selected = n.Id;
-            Map.SelectedId = n.Id; // haritada secim halkasi
             _vib.Clear(); _bt.Clear(); _dp.Clear();
-            DetailId.Text = n.Id;
-            DetailName.Text = n.Name;
-            ShowDetailAnimated();
             UpdateDetail();
             UpdateSensorList(n.Id);
-            SelectedInfo.Text = $"{n.Id}  {n.Name}";
-
-            // Canli kaynak: B ucundan NodeDetail'i talep uzerine getir — sunucunun
-            // yetkili saglik durumunu goster + varsa taze dugum telemetrisini bindir.
-            // Fire-and-forget; sonuc UI thread'ine doner.
+            // Canli kaynak: B ucundan NodeDetail'i talep uzerine getir (fire-and-forget).
             DetailServerHealth.Visibility = Visibility.Collapsed;
             if (_source is LiveSnapshotSource live) _ = ShowServerHealthAsync(live, n.Id);
         }
         else
         {
-            SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme dışı)";
+            ShowPumpDetail(n);
         }
+
+        ShowDetailAnimated();
+        SelectedInfo.Text = $"{n.Id}  {n.Name}";
+    }
+
+    // Petrol pompa istasyonu / terminali detayi: telemetri yok — kimlik + bagli
+    // ham petrol hatlari (btas.jpg'deki Pompa Istasyonu siniflandirmasina karsilik).
+    private void ShowPumpDetail(PNode n)
+    {
+        bool depo = n.Type == "OILDEPO";
+        DetailStatus.Text = depo ? "PETROL DEPO / YÜKLEME" : "POMPA İSTASYONU";
+        DetailStatusBox.Background = new SolidColorBrush(depo
+            ? Color.FromRgb(0xC8, 0xD1, 0x2E) : Color.FromRgb(0x9A, 0xBE, 0x3A));
+
+        DetailPumpType.Text = "Tür: " + (depo ? "Ham Petrol Depolama/Yükleme Tesisi" : "Ham Petrol Pompa İstasyonu");
+        string region = System.Globalization.CultureInfo.CurrentCulture.TextInfo
+            .ToTitleCase(n.Region.Replace('_', ' '));
+        DetailPumpRegion.Text = "Bölge: " + region;
+
+        var sb = new System.Text.StringBuilder();
+        int count = 0;
+        foreach (var s in PipelineTopology.Segments)
+        {
+            if (s.From != n.Id && s.To != n.Id) continue;
+            string otherId = s.From == n.Id ? s.To : s.From;
+            if (count > 0) sb.Append('\n');
+            sb.Append($"→ {PipelineTopology.NodeById(otherId).Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
+            count++;
+        }
+        DetailPumpConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";
     }
 
     // Sunucunun yetkili health_state'ini canli B ucundan getirip detay panelinde

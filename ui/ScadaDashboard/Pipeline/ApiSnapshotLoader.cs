@@ -133,7 +133,8 @@ public static class ApiSnapshotLoader
     }
 
     // API'de node_type yok; tip id önekinden çıkarılır (UGS→STORAGE harita tipiyle uyumlu).
-    private static string InferType(string id)
+    // internal: LocalTopologyLoader de aynı çıkarımı kullanır (tek kaynak).
+    internal static string InferType(string id)
     {
         int dash = id.IndexOf('-');
         string prefix = dash > 0 ? id.Substring(0, dash) : id;

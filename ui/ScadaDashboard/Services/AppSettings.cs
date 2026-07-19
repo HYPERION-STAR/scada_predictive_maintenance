@@ -11,6 +11,7 @@ public enum SourceMode
     Snapshot,
     ApiHub,
     Canli,       // canlı telemetri endpoint'i (snapshot topolojisi + HTTP yoklama)
+    YerelVeri,   // çıkarılan yerel topoloji (scada_nodes.json + scada_segments.json); yalnız topoloji
 }
 
 /// <summary>

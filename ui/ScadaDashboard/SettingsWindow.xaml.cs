@@ -12,7 +12,7 @@ public partial class SettingsWindow : Window
     public AppSettings Result { get; private set; }
     private readonly bool _origLight; // Vazgeç'te temayi geri almak icin
 
-    public SettingsWindow(AppSettings current, string? snapshotPath)
+    public SettingsWindow(AppSettings current, string? snapshotPath, bool localDataAvailable = false)
     {
         InitializeComponent();
         WindowFx.Apply(this);
@@ -23,6 +23,7 @@ public partial class SettingsWindow : Window
         ModeAuto.IsChecked = current.SourceMode == SourceMode.Otomatik;
         ModeSim.IsChecked = current.SourceMode == SourceMode.Simulasyon;
         ModeSnap.IsChecked = current.SourceMode == SourceMode.Snapshot;
+        ModeLocal.IsChecked = current.SourceMode == SourceMode.YerelVeri;
         ModeLive.IsChecked = current.SourceMode == SourceMode.Canli;
         ModeHub.IsChecked = current.SourceMode == SourceMode.ApiHub;
         HubUrlBox.Text = current.HubUrl;
@@ -32,6 +33,11 @@ public partial class SettingsWindow : Window
             ? $"Bulunan dosya: {snapshotPath}"
             : "Snapshot dosyası bulunamadı (*live_snapshot.json)";
         ModeSnap.IsEnabled = snapshotPath != null;
+
+        // Yerel Veri: yalnız çıkarılan topoloji dosyaları bulunduysa seçilebilir.
+        ModeLocal.IsEnabled = localDataAvailable;
+        if (!localDataAvailable)
+            LocalInfo.Text = "scada_nodes.json + scada_segments.json bulunamadı";
 
         // Canlı: topoloji API'den (/nodes + /segments), telemetri /live_data'dan.
         // API erişilemezse snapshot dosyasına düşer; her koşulda seçilebilir.
@@ -43,6 +49,7 @@ public partial class SettingsWindow : Window
     {
         var mode = ModeSim.IsChecked == true ? SourceMode.Simulasyon
                  : ModeSnap.IsChecked == true ? SourceMode.Snapshot
+                 : ModeLocal.IsChecked == true ? SourceMode.YerelVeri
                  : ModeLive.IsChecked == true ? SourceMode.Canli
                  : ModeHub.IsChecked == true ? SourceMode.ApiHub
                  : SourceMode.Otomatik;
@@ -66,6 +73,9 @@ public partial class SettingsWindow : Window
         {
             SourceMode = mode, HubUrl = url, LiveUrl = liveUrl,
             LightTheme = LightThemeBox.IsChecked == true,
+            // canlı istemci ayarları korunur (aksi halde Uygula varsayılana döndürürdü)
+            PollIntervalSeconds = Result.PollIntervalSeconds,
+            TimeoutSeconds = Result.TimeoutSeconds,
         };
         Result.Save();
         DialogResult = true;

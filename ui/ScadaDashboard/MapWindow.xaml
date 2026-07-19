@@ -122,6 +122,24 @@
                         <TextBlock x:Name="DetailStatus" FontSize="13" FontWeight="Bold" Foreground="#0F1620"/>
                     </Border>
 
+                    <!-- Petrol pompa istasyonu / terminali paneli (telemetri yok; kimlik + bagli hatlar) -->
+                    <StackPanel x:Name="PumpPanel" Visibility="Collapsed">
+                        <TextBlock x:Name="DetailPumpType" FontSize="12.5" Margin="0,12,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextBrush}"/>
+                        <TextBlock x:Name="DetailPumpRegion" FontSize="12" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource MutedBrush}"/>
+                        <TextBlock Text="BAĞLI HATLAR" FontSize="10" FontWeight="Bold" Margin="0,14,0,4"
+                                   Foreground="{DynamicResource MutedBrush}"/>
+                        <TextBlock x:Name="DetailPumpConns" FontSize="11.5" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextBrush}"/>
+                        <TextBlock FontSize="10.5" Margin="0,12,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource MutedBrush}"
+                                   Text="Ham petrol hattı — sağlık/RUL telemetrisi izlenmez."/>
+                    </StackPanel>
+
+                    <!-- Gaz kompresör istasyonu: saglik + sensorler (yalnizca IsStation) -->
+                    <StackPanel x:Name="HealthPanel">
+
                     <!-- Canli modda sunucunun yetkili degerlendirmesi (B ucu health_state); proxy'den ayri gosterilir -->
                     <TextBlock x:Name="DetailServerHealth" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
                                Foreground="{DynamicResource MutedBrush}" Visibility="Collapsed"/>
@@ -213,6 +231,7 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    </StackPanel>
                 </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -257,8 +276,13 @@
                     </CheckBox>
                     <CheckBox Tag="OTHER" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
                               Style="{StaticResource CircleCheck}" Background="#8CA3B8"
-                              VerticalAlignment="Center" Margin="0,0,20,0" ToolTip="Kavşak / LNG / FSRU / terminal düğümlerini göster/gizle">
+                              VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Kavşak / LNG / FSRU / terminal düğümlerini göster/gizle">
                         <TextBlock Text="Diğer" FontSize="11" Foreground="{DynamicResource TextBrush}"/>
+                    </CheckBox>
+                    <CheckBox Tag="OIL" IsChecked="True" Checked="CategoryToggle" Unchecked="CategoryToggle"
+                              Style="{StaticResource CircleCheck}" Background="#9ABE3A"
+                              VerticalAlignment="Center" Margin="0,0,20,0" ToolTip="Petrol pompa istasyonları / terminalleri göster/gizle">
+                        <TextBlock Text="Petrol" FontSize="11" Foreground="{DynamicResource TextBrush}"/>
                     </CheckBox>
 
                     <TextBlock Text="Akış: düşük" FontSize="11" Foreground="#4ECDC4" VerticalAlignment="Center" Margin="0,0,4,0"/>

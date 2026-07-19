@@ -110,6 +110,7 @@ public sealed class PipelineMapControl : Control
     private static string CategoryOf(PNode n) =>
         n.IsStation || n.Type == "CS" ? "CS"
         : n.Type is "BORDER" or "OFFTAKE" or "STORAGE" ? n.Type
+        : n.Type is "PS" or "PT" or "OILDEPO" ? "OIL" // petrol pompa / depo
         : "OTHER";
 
     private readonly Dictionary<string, Point> _screen = new();
@@ -119,6 +120,13 @@ public sealed class PipelineMapControl : Control
     private string? _hoverId;   // uzerine gelinen dugum/segment
     private bool _hoverSeg;
     private int _hoverStartTick; // hover buyume animasyonu baslangici
+
+    // Ust uste binen dugumler icin secim balonu (hover ile acilir).
+    private List<PNode>? _cluster;          // ayni noktadaki >1 dugum
+    private Point _clusterAnchor;           // balonun baglandigi ekran noktasi
+    private Rect _clusterBox;               // balon dikdortgeni (hit-test icin)
+    private double _clusterHeaderH, _clusterRowH;
+    private int _clusterHover = -1;         // fare altindaki satir (-1 yok)
     private Point _mouse;
 
     // Secili istasyon: panel <-> harita baglantisi icin parlak halka cizilir.
@@ -201,11 +209,20 @@ public sealed class PipelineMapControl : Control
         return new SolidColorBrush(c);
     }
 
+    // btaş.jpg sınıflandırması: petrol zeytin-yeşili; depo/yükleme sarımsı (altıgen);
+    // TANAP mor; TürkAkım mavi.
+    private static readonly Color OilCol = Color.FromRgb(0x9A, 0xBE, 0x3A);        // petrol boru + pompa
+    private static readonly Color OilDepoCol = Color.FromRgb(0xC8, 0xD1, 0x2E);    // petrol depo/yükleme
+    private static readonly Color TanapCol = Color.FromRgb(0xA6, 0x5E, 0xE0);      // TANAP gaz hattı
+    private static readonly Color TurkStreamCol = Color.FromRgb(0x3A, 0xA0, 0xE0); // TürkAkım gaz hattı
+
     private static Color NodeTypeColor(string type) => type switch
     {
         "BORDER" => Color.FromRgb(0x4E, 0x9B, 0xF5),
         "OFFTAKE" => Color.FromRgb(0xC5, 0x8A, 0xF5),
         "STORAGE" => Color.FromRgb(0x4E, 0xCD, 0xC4),
+        "PS" or "PT" => OilCol,              // petrol pompa istasyonu (kare)
+        "OILDEPO" => OilDepoCol,             // petrol depolama/yükleme (altıgen)
         _ => Color.FromRgb(0x8C, 0xA3, 0xB8),
     };
 
@@ -336,8 +353,16 @@ public sealed class PipelineMapControl : Control
             _segScreen[seg.Id] = pts;
 
             var snap = _source.Segment(seg.Id);
-            var col = Lerp(lowCol, highCol, snap.LoadRatio);
-            double thick = 2.5 + snap.LoadRatio * 4.0;
+            // Hat türüne göre renk (btaş.jpg): petrol zeytin, TANAP mor, TürkAkım mavi;
+            // diğer gaz akış rengiyle (turkuaz→kırmızı, doluluğa göre).
+            (Color col, bool typed) = seg.Product switch
+            {
+                "oil" => (OilCol, true),
+                "gas_tanap" => (TanapCol, true),
+                "gas_turkstream" => (TurkStreamCol, true),
+                _ => (Lerp(lowCol, highCol, snap.LoadRatio), false),
+            };
+            double thick = typed ? 3.8 : 2.5 + snap.LoadRatio * 4.0;
 
             // Boru gorunumu: dista koyu kilif, ustte ana renk, ortada ince parlak
             // sheen -> silindirik "boru" hissi. Yuvarlak uclar/birlesimler purussuz.
@@ -462,6 +487,7 @@ public sealed class PipelineMapControl : Control
         foreach (var draw in labelDraws) draw();
 
         DrawTooltip(dc, dpi);
+        DrawClusterChooser(dc, dpi);
     }
 
     // Dugum turune gore ayri gorsel: istasyon=daire, depo=silindir, sinir=elmas,
@@ -494,12 +520,15 @@ public sealed class PipelineMapControl : Control
         switch (n.Type)
         {
             case "STORAGE":
+            case "OILDEPO":
             {
-                // Silindir (depo): govde + doluluk + ust elips.
+                // Silindir (depo): govde + doluluk + ust elips. Gaz UGS gercek dolulugu
+                // gosterir; petrol deposu (OILDEPO) telemetri tasimaz -> dolu cizilir.
+                // Ikon aynidir; renk turden gelir (UGS turkuaz, petrol deposu sarimsi).
                 double rw = r * 1.3, rh = r * 1.7, ry = r * 0.42;
                 var body = new Rect(p.X - rw, p.Y - rh + ry, rw * 2, rh * 2 - ry * 2);
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)), null, body);
-                double lvl = Math.Clamp(_source?.Level(n.Id) ?? 0, 0, 100);
+                double lvl = n.Type == "OILDEPO" ? 100 : Math.Clamp(_source?.Level(n.Id) ?? 0, 0, 100);
                 double fh = body.Height * lvl / 100.0;
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(200, col.R, col.G, col.B)), null,
                     new Rect(body.X, body.Bottom - fh, body.Width, fh));
@@ -537,6 +566,15 @@ public sealed class PipelineMapControl : Control
                 }
                 g.Freeze();
                 dc.DrawGeometry(colBrush, bgPen, g);
+                break;
+            }
+            case "PS":
+            case "PT":
+            {
+                // Petrol pompa istasyonu: yesil kare "kalkan".
+                double d = r * 1.05;
+                dc.DrawRoundedRectangle(colBrush, bgPen,
+                    new Rect(p.X - d, p.Y - d, d * 2, d * 2), d * 0.3, d * 0.3);
                 break;
             }
             default: // JUNCTION / LNG / FSRU / TERMINAL: ici bos halka
@@ -666,6 +704,17 @@ public sealed class PipelineMapControl : Control
     {
         _dragging = false; ReleaseMouseCapture();
         if (_moved) return; // sürüklemeyse tıklama sayma
+
+        // Secim balonu aciksa: bir satira tiklandiysa onu sec, degilse balonu kapat.
+        if (_cluster != null)
+        {
+            PNode? chosen = _clusterHover >= 0 && _clusterHover < _cluster.Count ? _cluster[_clusterHover] : null;
+            _cluster = null; _clusterHover = -1;
+            if (chosen != null) NodeClicked?.Invoke(chosen);
+            InvalidateVisual();
+            return;
+        }
+
         var click = e.GetPosition(this);
         foreach (var n in PipelineTopology.Nodes)
             if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
@@ -680,21 +729,47 @@ public sealed class PipelineMapControl : Control
             var d = _mouse - _dragStart;
             if (d.Length > 3) _moved = true;
             _panX = _panStartX + d.X; _panY = _panStartY + d.Y;
-            _hoverId = null;
+            _hoverId = null; _cluster = null;
             InvalidateVisual();
             return;
         }
-        string? prevHover = _hoverId;
-        _hoverId = null;
-        foreach (var n in PipelineTopology.Nodes)
-            if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (_mouse - p).Length <= 18)
+
+        // Acik secim balonu: fare balonun/gecisin uzerindeyken acik tut, satiri isaretle.
+        if (_cluster != null)
+        {
+            bool inBox = _clusterBox.Contains(_mouse);
+            bool keep = inBox || Rect.Inflate(_clusterBox, 24, 24).Contains(_mouse)
+                        || (_mouse - _clusterAnchor).Length <= 22;
+            if (keep)
             {
-                _hoverId = n.Id; _hoverSeg = false;
-                if (_hoverId != prevHover) _hoverStartTick = Environment.TickCount;
-                Cursor = Cursors.Hand; // tiklanabilir gostergesi
+                int idx = inBox && _clusterRowH > 0
+                    ? (int)((_mouse.Y - (_clusterBox.Y + _clusterHeaderH)) / _clusterRowH) : -1;
+                _clusterHover = (idx >= 0 && idx < _cluster.Count) ? idx : -1;
+                Cursor = _clusterHover >= 0 ? Cursors.Hand : Cursors.Arrow;
                 InvalidateVisual();
                 return;
             }
+            _cluster = null; // balondan uzaklasti -> kapat
+        }
+
+        // Fare cevresindeki gorunur dugumler (ust uste binenler dahil).
+        var near = NodesNear(_mouse, 18);
+        if (near.Count > 1) // birden fazla -> secim balonu ac
+        {
+            _cluster = near; _clusterAnchor = _mouse; _clusterHover = -1; _hoverId = null;
+            Cursor = Cursors.Hand; InvalidateVisual(); return;
+        }
+
+        string? prevHover = _hoverId;
+        _hoverId = null;
+        if (near.Count == 1)
+        {
+            _hoverId = near[0].Id; _hoverSeg = false;
+            if (_hoverId != prevHover) _hoverStartTick = Environment.TickCount;
+            Cursor = Cursors.Hand; // tiklanabilir gostergesi
+            InvalidateVisual();
+            return;
+        }
         foreach (var s in PipelineTopology.Segments)
             if (_segScreen.TryGetValue(s.Id, out var pts) && DistToPolyline(_mouse, pts) <= 7)
             { _hoverId = s.Id; _hoverSeg = true; Cursor = Cursors.Hand; InvalidateVisual(); return; }
@@ -702,9 +777,21 @@ public sealed class PipelineMapControl : Control
         Cursor = Cursors.Arrow; // bos alan
     }
 
+    // Fare cevresindeki (rad px) gorunur dugumler, mesafeye gore sirali (en fazla 8).
+    private List<PNode> NodesNear(Point m, double rad)
+    {
+        var list = new List<PNode>();
+        foreach (var n in PipelineTopology.Nodes)
+            if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (m - p).Length <= rad)
+                list.Add(n);
+        list.Sort((a, b) => (m - _screen[a.Id]).Length.CompareTo((m - _screen[b.Id]).Length));
+        if (list.Count > 8) list.RemoveRange(8, list.Count - 8);
+        return list;
+    }
+
     protected override void OnMouseLeave(MouseEventArgs e)
     {
-        _hoverId = null; Cursor = Cursors.Arrow; InvalidateVisual();
+        _hoverId = null; _cluster = null; Cursor = Cursors.Arrow; InvalidateVisual();
     }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
@@ -882,6 +969,61 @@ public sealed class PipelineMapControl : Control
         foreach (var rf in rowFts) { dc.DrawText(rf, new Point(x + pad, cy)); cy += rf.Height + 2; }
     }
 
+    // Ust uste binen dugumler icin secim balonu: her nesneyi renkli nokta + ad + tur
+    // ile listeler; fare altindaki satir vurgulanir, tiklayinca o dugum secilir.
+    private void DrawClusterChooser(DrawingContext dc, double dpi)
+    {
+        if (_cluster == null || _cluster.Count < 2 || _source == null) return;
+
+        var header = Text($"{_cluster.Count} nesne — birini seçin", 10.5, MutedCol, dpi);
+        var names = _cluster.Select(n => Text(n.Name, 11.5, TextCol, dpi)).ToList();
+        var kinds = _cluster.Select(n => Text(NodeKindLabel(n), 9.5, MutedCol, dpi)).ToList();
+
+        const double pad = 8, dotW = 16, rowPad = 6;
+        _clusterRowH = names[0].Height + kinds[0].Height + rowPad * 2;
+        _clusterHeaderH = header.Height + 8;
+
+        double contentW = header.Width;
+        for (int i = 0; i < _cluster.Count; i++)
+            contentW = Math.Max(contentW, dotW + Math.Max(names[i].Width, kinds[i].Width));
+        double w = contentW + 2 * pad;
+        double h = _clusterHeaderH + _clusterRowH * _cluster.Count + pad;
+
+        double x = _clusterAnchor.X + 16, y = _clusterAnchor.Y + 12;
+        if (x + w > ActualWidth - 4) x = _clusterAnchor.X - w - 16;
+        if (x < 4) x = 4;
+        if (y + h > ActualHeight - 4) y = ActualHeight - h - 4;
+        if (y < 4) y = 4;
+        _clusterBox = new Rect(x, y, w, h);
+
+        // Baglanti cizgisi: capa noktasindan balona (hangi kume oldugu belli olsun).
+        dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(120, AccentCol.R, AccentCol.G, AccentCol.B)), 1),
+            _clusterAnchor, new Point(x + 10, y + 10));
+        dc.DrawEllipse(new SolidColorBrush(AccentCol), null, _clusterAnchor, 3, 3);
+
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(70, 0, 0, 0)), null, new Rect(x + 2, y + 3, w, h), 8, 8);
+        dc.DrawRoundedRectangle(new SolidColorBrush(TipBg), new Pen(new SolidColorBrush(TipBorder), 1), _clusterBox, 8, 8);
+        dc.DrawText(header, new Point(x + pad, y + 4));
+
+        double ry = y + _clusterHeaderH;
+        for (int i = 0; i < _cluster.Count; i++)
+        {
+            var n = _cluster[i];
+            if (i == _clusterHover)
+                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(45, AccentCol.R, AccentCol.G, AccentCol.B)),
+                    null, new Rect(x + 3, ry, w - 6, _clusterRowH), 5, 5);
+            double hh = n.IsStation ? _source.Node(n.Id).Health : 100;
+            var col = n.IsStation ? ((SolidColorBrush)HealthBrush(hh)).Color : NodeTypeColor(n.Type);
+            dc.DrawEllipse(new SolidColorBrush(col), null, new Point(x + pad + 4, ry + rowPad + names[i].Height / 2), 5, 5);
+            dc.DrawText(names[i], new Point(x + pad + dotW, ry + rowPad));
+            dc.DrawText(kinds[i], new Point(x + pad + dotW, ry + rowPad + names[i].Height));
+            ry += _clusterRowH;
+        }
+    }
+
+    private static string NodeKindLabel(PNode n) =>
+        n.IsStation || n.Type == "CS" ? "Kompresör İstasyonu" : TypeLabel(n.Type);
+
     private static string TypeLabel(string type) => type switch
     {
         "BORDER" => "Sınır İstasyonu",
@@ -891,6 +1033,8 @@ public sealed class PipelineMapControl : Control
         "LNG" => "LNG Terminali",
         "FSRU" => "FSRU",
         "TERMINAL" => "Geçiş İstasyonu",
+        "PS" or "PT" => "Petrol Pompa İstasyonu",
+        "OILDEPO" => "Petrol Depolama/Yükleme Tesisi",
         _ => type,
     };
 }

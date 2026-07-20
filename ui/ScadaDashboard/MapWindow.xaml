@@ -189,22 +189,24 @@
                         <TextBlock x:Name="DetailStatus" FontSize="13" FontWeight="Bold" Foreground="#0F1620"/>
                     </Border>
 
-                    <!-- Petrol pompa istasyonu / terminali paneli (telemetri yok; kimlik + bagli hatlar) -->
+                    <!-- Petrol pompa istasyonu / terminali paneli (telemetri yok; kimlik + bagli hatlar).
+                         Bolum stili gaz deposu paneliyle (StoragePanel) tutarli: baslik + deger. -->
                     <StackPanel x:Name="PumpPanel" Visibility="Collapsed">
-                        <TextBlock x:Name="DetailPumpType" FontSize="12.5" Margin="0,12,0,0" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextBrush}"/>
-                        <TextBlock x:Name="DetailPumpRegion" FontSize="12" Margin="0,4,0,0"
+                        <TextBlock Text="TÜR" FontSize="10" Margin="0,14,0,2"
                                    Foreground="{DynamicResource MutedBrush}"/>
+                        <TextBlock x:Name="DetailPumpType" FontSize="12.5" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextBrush}"/>
+                        <TextBlock Text="BÖLGE" FontSize="10" Margin="0,10,0,2"
+                                   Foreground="{DynamicResource MutedBrush}"/>
+                        <TextBlock x:Name="DetailPumpRegion" FontSize="12.5"
+                                   Foreground="{DynamicResource TextBrush}"/>
                         <TextBlock Text="BAĞLI HATLAR" FontSize="10" FontWeight="Bold" Margin="0,14,0,4"
                                    Foreground="{DynamicResource MutedBrush}"/>
                         <TextBlock x:Name="DetailPumpConns" FontSize="11.5" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextBrush}"/>
-                        <TextBlock FontSize="10.5" Margin="0,12,0,0" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource MutedBrush}"
-                                   Text="Ham petrol hattı — sağlık/RUL telemetrisi izlenmez."/>
                     </StackPanel>
 
-                    <!-- Gaz deposu (UGS) minimal paneli: doluluk + bagli hatlar -->
+                    <!-- Depo minimal paneli (gaz UGS + petrol deposu ortak): doluluk + bagli hatlar -->
                     <StackPanel x:Name="StoragePanel" Visibility="Collapsed">
                         <TextBlock Text="DEPO DOLULUK" FontSize="10" Margin="0,14,0,2"
                                    Foreground="{DynamicResource MutedBrush}"/>

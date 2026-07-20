@@ -566,17 +566,15 @@ public sealed class PipelineMapControl : Control
             case "STORAGE":
             case "OILDEPO":
             {
-                // Silindir (depo): govde + doluluk + ust elips. Gaz UGS gercek dolulugu
-                // gosterir; petrol deposu (OILDEPO) telemetri tasimaz -> dolu cizilir.
+                // Silindir (depo): govde + doluluk + ust elips. Hem gaz UGS hem petrol
+                // deposu (OILDEPO) canli doluluk yuzdesini (s_storage_level_pct) gosterir.
                 // Ikon aynidir; renk turden gelir (UGS turkuaz, petrol deposu sarimsi).
                 double rw = r * 1.3, rh = r * 1.7, ry = r * 0.42;
                 var body = new Rect(p.X - rw, p.Y - rh + ry, rw * 2, rh * 2 - ry * 2);
                 dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(120, Bg.R, Bg.G, Bg.B)), null, body);
-                double lvl = n.Type == "OILDEPO" ? 100 : Math.Clamp(_source?.Level(n.Id) ?? 0, 0, 100);
+                double lvl = Math.Clamp(_source?.Level(n.Id) ?? 0, 0, 100);
                 double fh = body.Height * lvl / 100.0;
-                // Petrol deposu: seffaf dolgu (icine dolu boyanmaz); gaz UGS: doluluk kadar dolu.
-                byte fillA = n.Type == "OILDEPO" ? (byte)48 : (byte)200;
-                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(fillA, col.R, col.G, col.B)), null,
+                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(200, col.R, col.G, col.B)), null,
                     new Rect(body.X, body.Bottom - fh, body.Width, fh));
                 var pen = new Pen(colBrush, Math.Max(1, 1.6 * nodeScale));
                 dc.DrawRectangle(null, pen, body);

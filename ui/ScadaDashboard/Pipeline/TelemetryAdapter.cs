@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using ScadaClient.Models.Telemetry;
 
@@ -35,6 +36,15 @@ internal static class TelemetryAdapter
             var vals = new Dictionary<string, double>(accessors.Length);
             foreach (var (json, prop) in accessors)
                 vals[json] = (double)prop.GetValue(tel)!;
+
+            // DTO'ya eşlenmeyen ham sayısal alanlar (bilinmeyen entity_type'ın s_*
+            // sensörleri — ör. petrol deposu doluluğu s_storage_level_pct). Tipli
+            // alanları ezmeden ekle; böylece gelen veride olup DTO'da olmayan
+            // sensörler UI türetme katmanına ulaşır.
+            if (tel.Extra is { Count: > 0 } extra)
+                foreach (var (name, je) in extra)
+                    if (je.ValueKind == JsonValueKind.Number && je.TryGetDouble(out var d))
+                        vals.TryAdd(name, d);
 
             // Hem sözlük anahtarı hem entity_id ile eriş (SnapshotLoader.Norm kuralı).
             string k = SnapshotLoader.Norm(key);

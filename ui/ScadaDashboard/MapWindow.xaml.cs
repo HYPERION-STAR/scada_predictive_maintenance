@@ -459,10 +459,11 @@ public partial class MapWindow : Window
     private void OnNodeClicked(PNode n)
     {
         // Tıklanabilir düğümler: gaz kompresör (IsStation, sağlık/sensör paneli),
-        // ham petrol pompa/terminal (kimlik + bağlı hatlar) ve gaz deposu/UGS
-        // (minimal: doluluk + bağlı hatlar).
-        bool pump = n.Type is "PS" or "PT" or "OILDEPO";
-        bool storage = n.Type == "STORAGE";
+        // ham petrol pompa/terminal (kimlik + bağlı hatlar) ve depolar. Her iki depo
+        // tipi (gaz UGS + petrol deposu) haritada aynı silindir ikonuyla çizilir; bu
+        // yüzden ikisi de aynı minimal depo panelini (doluluk + bağlı hatlar) açar.
+        bool pump = n.Type is "PS" or "PT";
+        bool storage = n.Type is "STORAGE" or "OILDEPO";
         if (!n.IsStation && !pump && !storage)
         {
             SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme dışı)";
@@ -503,15 +504,12 @@ public partial class MapWindow : Window
     // ham petrol hatlari (btas.jpg'deki Pompa Istasyonu siniflandirmasina karsilik).
     private void ShowPumpDetail(PNode n)
     {
-        bool depo = n.Type == "OILDEPO";
-        DetailStatus.Text = depo ? "PETROL DEPO / YÜKLEME" : "POMPA İSTASYONU";
-        DetailStatusBox.Background = new SolidColorBrush(depo
-            ? Color.FromRgb(0xC8, 0xD1, 0x2E) : Color.FromRgb(0x9A, 0xBE, 0x3A));
+        DetailStatus.Text = "POMPA İSTASYONU";
+        DetailStatusBox.Background = new SolidColorBrush(Color.FromRgb(0x9A, 0xBE, 0x3A));
 
-        DetailPumpType.Text = "Tür: " + (depo ? "Ham Petrol Depolama/Yükleme Tesisi" : "Ham Petrol Pompa İstasyonu");
-        string region = System.Globalization.CultureInfo.CurrentCulture.TextInfo
+        DetailPumpType.Text = "Ham Petrol Pompa İstasyonu";
+        DetailPumpRegion.Text = System.Globalization.CultureInfo.CurrentCulture.TextInfo
             .ToTitleCase(n.Region.Replace('_', ' '));
-        DetailPumpRegion.Text = "Bölge: " + region;
 
         var sb = new System.Text.StringBuilder();
         int count = 0;
@@ -526,11 +524,15 @@ public partial class MapWindow : Window
         DetailPumpConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";
     }
 
-    // Gaz deposu (UGS) minimal detayi: doluluk % (telemetriden) + bagli hatlar.
+    // Depo minimal detayi (gaz UGS + petrol deposu ortak): doluluk + bagli hatlar.
+    // Her iki depo tipi de canli doluluk yuzdesini (s_storage_level_pct) tasir.
+    // Panel yapisi her iki depo tipinde ayni kalir; yalnizca kimlik rozeti degisir.
     private void ShowStorageDetail(PNode n)
     {
-        DetailStatus.Text = "DOĞAL GAZ DEPOLAMA (UGS)";
-        DetailStatusBox.Background = new SolidColorBrush(Color.FromRgb(0x4E, 0xCD, 0xC4));
+        bool oil = n.Type == "OILDEPO";
+        DetailStatus.Text = oil ? "PETROL DEPO / YÜKLEME" : "DOĞAL GAZ DEPOLAMA (UGS)";
+        DetailStatusBox.Background = new SolidColorBrush(oil
+            ? Color.FromRgb(0xC8, 0xD1, 0x2E) : Color.FromRgb(0x4E, 0xCD, 0xC4));
 
         DetailStorageLevel.Text = $"%{_source.Level(n.Id):0}";
 

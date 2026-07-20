@@ -35,6 +35,19 @@ public sealed class AppSettings
     /// <summary>Canlı HTTP istek zaman aşımı (saniye) — ScadaClient TimeoutSeconds'a geçer.</summary>
     public int TimeoutSeconds { get; set; } = 15;
 
+    /// <summary>İstasyon dairesi görünümü: pasta (varsayılan) / ortalama / en kötü.</summary>
+    public Pipeline.HealthDisplayMode HealthDisplayMode { get; set; } = Pipeline.HealthDisplayMode.Pie;
+
+    /// <summary>Pasta kenar rengi özeti: en kötü (varsayılan) / ortalama. Yalnız pasta modunda.</summary>
+    public Pipeline.HealthAggregate HealthOutlineAggregate { get; set; } = Pipeline.HealthAggregate.Worst;
+
+    /// <summary>Kritik alarm eşiği (sağlık %). Alarm HER ZAMAN en kötü üniteye bakar;
+    /// eşik düşürülünce alarm seyrekleşir. Varsayılan 20.</summary>
+    public double CriticalHealthThreshold { get; set; } = 20;
+
+    /// <summary>Pasta dilim ayırıcı rengi (#RRGGBB). Boş = tema varsayılanı (Bg ile karıştırma).</summary>
+    public string PieSeparatorColorHex { get; set; } = "";
+
     private static string PathFor() =>
         System.IO.Path.Combine(AppContext.BaseDirectory, "settings.json");
 

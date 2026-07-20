@@ -28,6 +28,7 @@ public partial class SettingsWindow : Window
         ModeHub.IsChecked = current.SourceMode == SourceMode.ApiHub;
         HubUrlBox.Text = current.HubUrl;
         LiveUrlBox.Text = current.LiveUrl;
+        ThresholdSlider.Value = current.CriticalHealthThreshold;
 
         SnapInfo.Text = snapshotPath != null
             ? $"Bulunan dosya: {snapshotPath}"
@@ -76,6 +77,11 @@ public partial class SettingsWindow : Window
             // canlı istemci ayarları korunur (aksi halde Uygula varsayılana döndürürdü)
             PollIntervalSeconds = Result.PollIntervalSeconds,
             TimeoutSeconds = Result.TimeoutSeconds,
+            // sağlık görünümü üst bar menüsünden yönetilir; burada korunur
+            HealthDisplayMode = Result.HealthDisplayMode,
+            HealthOutlineAggregate = Result.HealthOutlineAggregate,
+            CriticalHealthThreshold = ThresholdSlider.Value,
+            PieSeparatorColorHex = Result.PieSeparatorColorHex,
         };
         Result.Save();
         DialogResult = true;

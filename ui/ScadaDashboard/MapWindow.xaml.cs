@@ -12,6 +12,9 @@ namespace ScadaDashboard;
 /// </summary>
 public sealed record SensorRow(string Name, string Value, bool IsHeader = false, int Alert = 0);
 
+/// <summary>Detay panelindeki ünite sağlık kırılımı satırı (pasta modu).</summary>
+public sealed record UnitHealthRow(string Name, string Value, Brush Dot);
+
 public partial class MapWindow : Window
 {
     private IPipelineSource _source = null!;   // ApplySource ctor'da doldurur
@@ -30,6 +33,7 @@ public partial class MapWindow : Window
         // Veri kaynagi: kalici ayar (settings.json) uygulanir; "Otomatik" modda
         // oncelik SCADA_HUB_URL > snapshot dosyasi > simulasyon.
         ApplySource(_settings);
+        InitHealthViewControls();
         Map.NodeClicked += OnNodeClicked;
         ThemeManager.Changed += OnThemeChanged; // tema degisince harita yeniden cizilir
 
@@ -120,6 +124,10 @@ public partial class MapWindow : Window
         UnitsButton.Visibility = _source is PipelineSimulator or SnapshotSource
             ? Visibility.Visible : Visibility.Collapsed;
         Map.Source = _source;
+        Map.HealthMode = _settings.HealthDisplayMode;
+        Map.OutlineAggregate = _settings.HealthOutlineAggregate;
+        Map.CriticalThreshold = _settings.CriticalHealthThreshold;
+        Map.SetPieSeparatorColorHex(_settings.PieSeparatorColorHex);
         BuildRegionBar(); // kaynak degisince bolge cubugu yenilenir
 
         // Acik detay eski kaynaga aitti; kapat.
@@ -127,6 +135,7 @@ public partial class MapWindow : Window
         Map.SelectedId = null;
         Detail.Visibility = Visibility.Collapsed;
         UpdateAlarms();
+        RefreshPieSepSwatch();
     }
 
     // Ayarlar penceresi: kaynak degisirse aninda uygula.
@@ -137,8 +146,130 @@ public partial class MapWindow : Window
         {
             _settings = dlg.Result;
             ApplySource(_settings);
+            // Esik degismis olabilir; rozet + acik panel tazelenir.
+            UpdateAlarms();
+            if (_selected != null && PipelineTopology.NodeById(_selected) is { IsStation: true })
+                RenderStationHealth(_source.Node(_selected), _source.UnitHealths(_selected));
         }
     }
+
+    // --- Saglik gorunumu (ust bar menusu) -----------------------------------
+
+    private void InitHealthViewControls()
+    {
+        HvPie.IsChecked = _settings.HealthDisplayMode == HealthDisplayMode.Pie;
+        HvAvg.IsChecked = _settings.HealthDisplayMode == HealthDisplayMode.Average;
+        HvWorst.IsChecked = _settings.HealthDisplayMode == HealthDisplayMode.Worst;
+        OaWorst.IsChecked = _settings.HealthOutlineAggregate == HealthAggregate.Worst;
+        OaAvg.IsChecked = _settings.HealthOutlineAggregate == HealthAggregate.Average;
+        UpdateOutlineSectionState();
+        RefreshPieSepSwatch();
+    }
+
+    private void RefreshPieSepSwatch()
+    {
+        if (PieSepSwatch == null) return;
+        var c = Map.EffectivePieSeparatorColor;
+        PieSepSwatch.Background = new SolidColorBrush(c);
+        bool custom = !string.IsNullOrWhiteSpace(_settings.PieSeparatorColorHex);
+        PieSepHexText.Text = custom ? ColorUtil.ToHex(c) : $"Tema ({ColorUtil.ToHex(c)})";
+    }
+
+    private void PickPieSepColor_Click(object sender, RoutedEventArgs e)
+    {
+        var cur = Map.EffectivePieSeparatorColor;
+        using var dlg = new System.Windows.Forms.ColorDialog
+        {
+            Color = System.Drawing.Color.FromArgb(cur.R, cur.G, cur.B),
+            FullOpen = true,
+        };
+        if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        var picked = Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B);
+        _settings.PieSeparatorColorHex = ColorUtil.ToHex(picked);
+        Map.SetPieSeparatorColorHex(_settings.PieSeparatorColorHex);
+        _settings.Save();
+        RefreshPieSepSwatch();
+    }
+
+    private void ResetPieSepColor_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.PieSeparatorColorHex = "";
+        Map.SetPieSeparatorColorHex(null);
+        _settings.Save();
+        RefreshPieSepSwatch();
+    }
+
+    private void UpdateOutlineSectionState()
+    {
+        // Kenar rengi yalniz pasta modunda anlamli.
+        if (OutlineSection != null)
+            OutlineSection.IsEnabled = _settings.HealthDisplayMode == HealthDisplayMode.Pie;
+    }
+
+    private void HealthMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (Map == null) return; // XAML ayristirma sirasinda erken cagri korumasi
+        var mode = HvAvg.IsChecked == true ? HealthDisplayMode.Average
+                 : HvWorst.IsChecked == true ? HealthDisplayMode.Worst
+                 : HealthDisplayMode.Pie;
+        _settings.HealthDisplayMode = mode;
+        Map.HealthMode = mode;
+        UpdateOutlineSectionState();
+        _settings.Save();
+        if (_selected != null && PipelineTopology.NodeById(_selected) is { IsStation: true })
+            RenderStationHealth(_source.Node(_selected), _source.UnitHealths(_selected));
+    }
+
+    private void OutlineAgg_Changed(object sender, RoutedEventArgs e)
+    {
+        if (Map == null) return;
+        var agg = OaAvg.IsChecked == true ? HealthAggregate.Average : HealthAggregate.Worst;
+        _settings.HealthOutlineAggregate = agg;
+        Map.OutlineAggregate = agg;
+        _settings.Save();
+        if (_selected != null && PipelineTopology.NodeById(_selected) is { IsStation: true })
+            RenderStationHealth(_source.Node(_selected), _source.UnitHealths(_selected));
+    }
+
+    // Gorunum moduna gore gosterilecek ozet saglik (baslik + durum kutusu).
+    private double ShownHealth(IReadOnlyList<UnitHealth> units, double worstFallback) =>
+        _settings.HealthDisplayMode == HealthDisplayMode.Average
+            ? HealthAgg.Combine(units, HealthAggregate.Average, worstFallback)
+            : _settings.HealthDisplayMode == HealthDisplayMode.Pie
+                ? HealthAgg.Combine(units, _settings.HealthOutlineAggregate, worstFallback)
+                : worstFallback;
+
+    private void RenderStationHealth(NodeSnap snap, IReadOnlyList<UnitHealth> units)
+    {
+        double shown = ShownHealth(units, snap.Health);
+        DetailRul.Text = $"{snap.Rul:0} döngü";
+        DetailHealth.Text = $"%{shown:0}";
+        string durum = shown >= 70 ? "SAĞLIKLI" : shown >= 40 ? "UYARI"
+                     : shown >= 20 ? "RİSKLİ" : "KRİTİK";
+        DetailStatus.Text = durum;
+        DetailStatusBox.Background = new SolidColorBrush(HealthColorCs(shown));
+        UpdateUnitBreakdown(units);
+    }
+
+    private void UpdateUnitBreakdown(IReadOnlyList<UnitHealth> units)
+    {
+        if (_settings.HealthDisplayMode == HealthDisplayMode.Pie && units.Count > 1)
+        {
+            UnitBreakdownList.ItemsSource = units.Select(u => new UnitHealthRow(
+                u.UnitId,
+                u.HasTelemetry ? $"%{u.Health:0}" : "veri yok",
+                new SolidColorBrush(u.HasTelemetry ? HealthColorCs(u.Health)
+                                                   : Color.FromRgb(0x5B, 0x6B, 0x7C)))).ToList();
+            UnitBreakdownPanel.Visibility = Visibility.Visible;
+        }
+        else UnitBreakdownPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private static Color HealthColorCs(double h) =>
+        h >= 70 ? Color.FromRgb(0x2E, 0xCC, 0x71)
+      : h >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
+      : h >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
+      : Color.FromRgb(0xE7, 0x4C, 0x3C);
 
     // Tam ag snapshot dosyasini bul: SCADA_SNAPSHOT env yolu, yoksa exe
     // klasorunden yukari dogru "*live_snapshot.json" aranir (dosya repo
@@ -316,7 +447,7 @@ public partial class MapWindow : Window
     {
         int crit = 0;
         foreach (var n in PipelineTopology.Nodes)
-            if (n.IsStation && _source.Node(n.Id).Health < 20) crit++;
+            if (n.IsStation && _source.Node(n.Id).Health < _settings.CriticalHealthThreshold) crit++;
         if (crit > 0)
         {
             AlarmText.Text = $"⚠  {crit} KRİTİK İSTASYON";
@@ -327,10 +458,12 @@ public partial class MapWindow : Window
 
     private void OnNodeClicked(PNode n)
     {
-        // Haritadaki gibi iki istasyon türü tıklanabilir: gaz kompresör (IsStation,
-        // sağlık/sensör paneli) ve ham petrol pompa/terminal (kimlik + bağlı hatlar).
+        // Tıklanabilir düğümler: gaz kompresör (IsStation, sağlık/sensör paneli),
+        // ham petrol pompa/terminal (kimlik + bağlı hatlar) ve gaz deposu/UGS
+        // (minimal: doluluk + bağlı hatlar).
         bool pump = n.Type is "PS" or "PT" or "OILDEPO";
-        if (!n.IsStation && !pump)
+        bool storage = n.Type == "STORAGE";
+        if (!n.IsStation && !pump && !storage)
         {
             SelectedInfo.Text = $"{n.Id}  {n.Name}  —  {n.Type} (izleme dışı)";
             return;
@@ -342,6 +475,7 @@ public partial class MapWindow : Window
         DetailName.Text = n.Name;
         HealthPanel.Visibility = n.IsStation ? Visibility.Visible : Visibility.Collapsed;
         PumpPanel.Visibility = pump ? Visibility.Visible : Visibility.Collapsed;
+        StoragePanel.Visibility = storage ? Visibility.Visible : Visibility.Collapsed;
 
         if (n.IsStation)
         {
@@ -351,6 +485,10 @@ public partial class MapWindow : Window
             // Canli kaynak: B ucundan NodeDetail'i talep uzerine getir (fire-and-forget).
             DetailServerHealth.Visibility = Visibility.Collapsed;
             if (_source is LiveSnapshotSource live) _ = ShowServerHealthAsync(live, n.Id);
+        }
+        else if (storage)
+        {
+            ShowStorageDetail(n);
         }
         else
         {
@@ -386,6 +524,27 @@ public partial class MapWindow : Window
             count++;
         }
         DetailPumpConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";
+    }
+
+    // Gaz deposu (UGS) minimal detayi: doluluk % (telemetriden) + bagli hatlar.
+    private void ShowStorageDetail(PNode n)
+    {
+        DetailStatus.Text = "DOĞAL GAZ DEPOLAMA (UGS)";
+        DetailStatusBox.Background = new SolidColorBrush(Color.FromRgb(0x4E, 0xCD, 0xC4));
+
+        DetailStorageLevel.Text = $"%{_source.Level(n.Id):0}";
+
+        var sb = new System.Text.StringBuilder();
+        int count = 0;
+        foreach (var s in PipelineTopology.Segments)
+        {
+            if (s.From != n.Id && s.To != n.Id) continue;
+            string otherId = s.From == n.Id ? s.To : s.From;
+            if (count > 0) sb.Append('\n');
+            sb.Append($"→ {PipelineTopology.NodeById(otherId).Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
+            count++;
+        }
+        DetailStorageConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";
     }
 
     // Sunucunun yetkili health_state'ini canli B ucundan getirip detay panelinde
@@ -444,16 +603,7 @@ public partial class MapWindow : Window
         VibVal.Text = $"{s.Vibration:0.00} mm/s";
         BtVal.Text = $"{s.BearingTemp:0.0} °C";
         DpVal.Text = $"{s.DischargePressure:0.00} bar";
-        DetailRul.Text = $"{snap.Rul:0} döngü";
-        DetailHealth.Text = $"%{snap.Health:0}";
-        string durum = snap.Health >= 70 ? "SAĞLIKLI" : snap.Health >= 40 ? "UYARI"
-                     : snap.Health >= 20 ? "RİSKLİ" : "KRİTİK";
-        DetailStatus.Text = durum;
-        DetailStatusBox.Background = new SolidColorBrush(
-            snap.Health >= 70 ? Color.FromRgb(0x2E, 0xCC, 0x71)
-          : snap.Health >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
-          : snap.Health >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
-          : Color.FromRgb(0xE7, 0x4C, 0x3C));
+        RenderStationHealth(snap, _source.UnitHealths(_selected));
 
         // Telemetri kalitesi (canli kaynakta sunucudan): yalnizca GOOD disi durumda uyar.
         string quality = (_source as SnapshotSource)?.StationDataQuality(_selected) ?? "";
@@ -590,7 +740,11 @@ public partial class MapWindow : Window
     }
 
     // Tema degisti: harita paleti guncellendi, yeniden ciz.
-    private void OnThemeChanged() => Map.InvalidateVisual();
+    private void OnThemeChanged()
+    {
+        Map.InvalidateVisual();
+        RefreshPieSepSwatch();
+    }
 
     protected override void OnClosed(EventArgs e)
     {

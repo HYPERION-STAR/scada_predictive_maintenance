@@ -14,7 +14,10 @@ public class SnapshotSource : IPipelineSource
 {
     private const double VibHealthy = 2.0;   // mm/s → %100
     private const double VibDead = 9.0;      // mm/s → %0
-    private const double LeakImbalancePct = 1.5;
+    // Geçici test: dar bant — metadata max ~2.5; 1.5 poll başına sahte sızıntı sıçratıyordu.
+    private const double LeakImbalancePct = 2.35;
+    private const double LeakClearPct = 2.0;       // histerezis: altına inince sayac sıfırlanır
+    private const int LeakPollsRequired = 3;         // canlı: aynı segmentte ardışık poll (≈15 sn @5s)
     private const double MaxRul = 130.0;     // simülatörle aynı RUL ölçeği
 
     private readonly SnapshotData _data;
@@ -26,11 +29,17 @@ public class SnapshotSource : IPipelineSource
     // Varlık başına telemetri kalitesi (canlı kaynakta sunucudan; dosyada boş).
     private IReadOnlyDictionary<string, string> _quality = new Dictionary<string, string>();
 
+    // Canlı poll gürültüsü: tek tur eşik aşımı sızıntı sayılmaz (sunucu rastgele salınım).
+    private bool _leakFilterLive;
+    private readonly Dictionary<string, int> _leakStreak = new();
+    private readonly HashSet<string> _leakActive = new(StringComparer.OrdinalIgnoreCase);
+
     public SnapshotSource(SnapshotData data)
     {
         _data = data;
         _telemetry = data.Telemetry;
         foreach (var s in data.Segments) _segCapacity[s.Id] = s.MaxCapacity;
+        RefreshLeakFlags();
     }
 
     public virtual void Tick() { } // statik anlık görüntü — zaman ilerlemez
@@ -40,8 +49,15 @@ public class SnapshotSource : IPipelineSource
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> telemetry,
         IReadOnlyDictionary<string, string> quality)
     {
+        if (!_leakFilterLive)
+        {
+            _leakFilterLive = true;
+            _leakStreak.Clear();
+            _leakActive.Clear();
+        }
         _telemetry = telemetry;
         _quality = quality;
+        RefreshLeakFlags();
     }
 
     /// <summary>
@@ -61,6 +77,49 @@ public class SnapshotSource : IPipelineSource
         foreach (var kv in quality) mergedQ[kv.Key] = kv.Value;
         _telemetry = mergedTel;
         _quality = mergedQ;
+        RefreshLeakFlags();
+    }
+
+    /// <summary>
+    /// Sızıntı bayrağı: dosyada anlık eşik; canlıda aynı segmentte <see cref="LeakPollsRequired"/>
+    /// ardışık poll eşik üstü kalınca latch (rastgele tek-tur spike'ları eler).
+    /// </summary>
+    private void RefreshLeakFlags()
+    {
+        if (!_leakFilterLive)
+        {
+            _leakActive.Clear();
+            foreach (var s in _data.Segments)
+            {
+                if (SegmentImbalance(s.Id) > LeakImbalancePct)
+                    _leakActive.Add(s.Id);
+            }
+            return;
+        }
+
+        foreach (var s in _data.Segments)
+        {
+            string id = s.Id;
+            double abs = SegmentImbalance(id);
+            if (abs > LeakImbalancePct)
+            {
+                int streak = _leakStreak.GetValueOrDefault(id) + 1;
+                _leakStreak[id] = streak;
+                if (streak >= LeakPollsRequired)
+                    _leakActive.Add(id);
+            }
+            else if (abs < LeakClearPct)
+            {
+                _leakStreak.Remove(id);
+                _leakActive.Remove(id);
+            }
+        }
+    }
+
+    private double SegmentImbalance(string segmentId)
+    {
+        var t = Telem(segmentId);
+        return t == null ? 0 : Math.Abs(t.GetValueOrDefault("s_mass_imbalance_pct"));
     }
 
     private IReadOnlyDictionary<string, double>? Telem(string id) =>
@@ -122,6 +181,23 @@ public class SnapshotSource : IPipelineSource
         return new NodeSnap(Math.Round(health, 1), Math.Round(health / 100.0 * MaxRul, 0), true);
     }
 
+    public IReadOnlyList<UnitHealth> UnitHealths(string id)
+    {
+        if (!_data.StationUnits.TryGetValue(id, out var units) || units.Count == 0)
+            return Array.Empty<UnitHealth>();
+        var result = new List<UnitHealth>(units.Count);
+        foreach (var u in units)
+        {
+            var t = Telem(u.Id);
+            // Telemetrisi yoksa "bilinmeyen" dilim (haritada gri); sağlık 100 tutulur ki
+            // toplama (min/ortalama) yalnız gerçek verili üniteleri saysın.
+            bool has = t != null;
+            double health = has ? VibHealth(t!.GetValueOrDefault("s_7_vibration_de_mm_s")) : 100;
+            result.Add(new UnitHealth(u.Id, u.Id, Math.Round(health, 1), has));
+        }
+        return result;
+    }
+
     // --- İstasyon üniteleri (haritadan açılan makine kartları için) ---------
 
     /// <summary>İstasyonun ünite listesi (drill-in kartları).</summary>
@@ -163,7 +239,7 @@ public class SnapshotSource : IPipelineSource
         double cap = _segCapacity.GetValueOrDefault(id);
         double load = cap > 0 ? Math.Clamp(flowM3H * 24.0 / 1000.0 / cap, 0, 1) : 0;
 
-        bool leak = t.GetValueOrDefault("s_mass_imbalance_pct") > LeakImbalancePct;
+        bool leak = _leakActive.Contains(id);
         return new SegSnap(Math.Round(flowMcmDay, 1), load, leak);
     }
 

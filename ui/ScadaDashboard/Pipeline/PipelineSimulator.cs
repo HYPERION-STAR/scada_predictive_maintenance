@@ -11,6 +11,15 @@ public readonly record struct SegSnap(double FlowMcmDay, double LoadRatio, bool 
 /// <summary>İstasyon detay sensörleri (yan panel grafikleri için).</summary>
 public readonly record struct StationSensors(double Vibration, double BearingTemp, double DischargePressure);
 
+/// <summary>Bir istasyon ünitesinin sağlık durumu (harita pasta dilimi + kırılım için).</summary>
+public readonly record struct UnitHealth(string UnitId, string Name, double Health, bool HasTelemetry);
+
+/// <summary>İstasyon dairesinin görünümü: pasta (ünite başına dilim), ortalama, en kötü.</summary>
+public enum HealthDisplayMode { Pie, Average, Worst }
+
+/// <summary>Özet sağlık toplama kuralı (pasta kenar rengi için).</summary>
+public enum HealthAggregate { Worst, Average }
+
 /// <summary>
 /// Canlı harita veri kaynağı soyutlaması. Bugün SIMULE; ileride gerçek akışa
 /// (Kişi 2 MQTT + Kişi 1 model) bağlanacak — harita değişmeden.
@@ -22,6 +31,27 @@ public interface IPipelineSource
     SegSnap Segment(string id);
     StationSensors Sensors(string id);
     double Level(string id); // depo doluluk %0-100 (depo degilse 0)
+
+    /// <summary>İstasyonun ünitelerinin tek tek sağlığı (pasta görünümü + kırılım).
+    /// İstasyon değilse/ünite yoksa boş liste.</summary>
+    IReadOnlyList<UnitHealth> UnitHealths(string id);
+}
+
+/// <summary>Ünite sağlıklarını görünüm moduna göre tek sayıya indirger (harita + panel ortak).</summary>
+public static class HealthAgg
+{
+    /// <summary>Telemetrisi olan ünitelerin toplaması; hiçbiri yoksa <paramref name="fallback"/>.</summary>
+    public static double Combine(IReadOnlyList<UnitHealth> units, HealthAggregate agg, double fallback)
+    {
+        double sum = 0, min = double.MaxValue; int n = 0;
+        foreach (var u in units)
+        {
+            if (!u.HasTelemetry) continue;
+            sum += u.Health; if (u.Health < min) min = u.Health; n++;
+        }
+        if (n == 0) return fallback;
+        return agg == HealthAggregate.Average ? sum / n : min;
+    }
 }
 
 /// <summary>
@@ -106,6 +136,19 @@ public sealed class PipelineSimulator : IPipelineSource
         if (w == null) return new NodeSnap(100, MaxRul, false); // sınır/çıkış/kavşak
         double health = Math.Clamp(w.Rul / MaxRul * 100.0, 0, 100);
         return new NodeSnap(Math.Round(health, 1), Math.Round(w.Rul, 1), true);
+    }
+
+    public IReadOnlyList<UnitHealth> UnitHealths(string id)
+    {
+        if (!_stationUnits.TryGetValue(id, out var list) || list.Count == 0)
+            return Array.Empty<UnitHealth>();
+        var result = new List<UnitHealth>(list.Count);
+        foreach (var u in list)
+        {
+            double health = Math.Clamp(u.Rul / MaxRul * 100.0, 0, 100);
+            result.Add(new UnitHealth(u.Id, u.Name, Math.Round(health, 1), true));
+        }
+        return result;
     }
 
     public SegSnap Segment(string id)

@@ -31,6 +31,7 @@ public sealed class PipelineMapControl : Control
     private static byte SheenA = 70;                      // sheen opakligi (temaya gore)
     private static Color GeoSeaCol = C(0x5B, 0x76, 0x8E); // deniz etiketi
     private static Color GeoCountryCol = C(0x6C, 0x7C, 0x8C); // ulke etiketi
+    private static Color SepPenCol = C(0xFF, 0xE3, 0xE3); // dilim ayırıcıları
 
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
 
@@ -45,6 +46,8 @@ public sealed class PipelineMapControl : Control
             FlowDash = C(0x2A, 0x3C, 0x4E); PipeSheen = C(0xFF, 0xFF, 0xFF); SheenA = 40;
             TipBg = C(0xFF, 0xFF, 0xFF); TipBorder = C(0xC2, 0xCF, 0xDC);
             GeoSeaCol = C(0x5E, 0x7B, 0x97); GeoCountryCol = C(0x7B, 0x8B, 0x9C);
+            SepPenCol = C(0xFF, 0xE3, 0xE3);
+
         }
         else
         {
@@ -54,6 +57,7 @@ public sealed class PipelineMapControl : Control
             FlowDash = C(0xDF, 0xEA, 0xF3); PipeSheen = C(0xFF, 0xFF, 0xFF); SheenA = 70;
             TipBg = C(0x1B, 0x28, 0x38); TipBorder = C(0x36, 0x45, 0x55);
             GeoSeaCol = C(0x5B, 0x76, 0x8E); GeoCountryCol = C(0x6C, 0x7C, 0x8C);
+            SepPenCol = C(0xFF, 0xE3, 0xE3);
         }
     }
 
@@ -78,6 +82,27 @@ public sealed class PipelineMapControl : Control
     public bool ShowProvinceBorders { get => _showProvinces; set { _showProvinces = value; InvalidateVisual(); } }
     public bool ShowGeoLabels { get => _showGeoLabels; set { _showGeoLabels = value; InvalidateVisual(); } }
     public bool ShowFlowArrows { get => _showFlow; set { _showFlow = value; InvalidateVisual(); } }
+
+    // --- Saglik gorunumu (ust bar "Saglik gorunumu" menusu doldurur) ---
+    // Daire dolgusu: pasta (unite basina dilim) / ortalama / en kotu. Alarm HER
+    // ZAMAN en kotu uniteye + CriticalThreshold esigine bakar (moddan bagimsiz).
+    private HealthDisplayMode _healthMode = HealthDisplayMode.Pie;
+    public HealthDisplayMode HealthMode { get => _healthMode; set { _healthMode = value; InvalidateVisual(); } }
+    private HealthAggregate _outlineAgg = HealthAggregate.Worst;
+    public HealthAggregate OutlineAggregate { get => _outlineAgg; set { _outlineAgg = value; InvalidateVisual(); } }
+    private double _criticalThreshold = 20;
+    public double CriticalThreshold { get => _criticalThreshold; set { _criticalThreshold = value; InvalidateVisual(); } }
+
+    // Kullanıcı seçimi (Sağlık Görünümü renk seçici); null → SepPenCol (tema varsayılanı).
+    private Color? _pieSepCustom;
+    public Color EffectivePieSeparatorColor => _pieSepCustom ?? SepPenCol;
+
+    public void SetPieSeparatorColorHex(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) _pieSepCustom = null;
+        else if (ColorUtil.TryParseHex(hex, out var c)) _pieSepCustom = c;
+        InvalidateVisual();
+    }
 
     // Komsu ulke / deniz / onemli sehir etiketleri (cografi baglam).
     private enum GeoKind { Sea, Country, City }
@@ -199,14 +224,16 @@ public sealed class PipelineMapControl : Control
                 }
     }
 
-    private static Brush HealthBrush(double h)
-    {
-        Color c = h >= 70 ? Color.FromRgb(0x2E, 0xCC, 0x71)
-                : h >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
-                : h >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
-                : Color.FromRgb(0xE7, 0x4C, 0x3C);
-        return new SolidColorBrush(c);
-    }
+    private static Color HealthColor(double h) =>
+        h >= 70 ? Color.FromRgb(0x2E, 0xCC, 0x71)
+      : h >= 40 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
+      : h >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
+      : Color.FromRgb(0xE7, 0x4C, 0x3C);
+
+    private static Brush HealthBrush(double h) => new SolidColorBrush(HealthColor(h));
+
+    // Telemetrisi olmayan unite dilimi (gri "bilinmeyen").
+    private static readonly Color UnknownCol = Color.FromRgb(0x5B, 0x6B, 0x7C);
 
     // btaş.jpg sınıflandırması: petrol zeytin-yeşili; depo/yükleme sarımsı (altıgen);
     // TANAP mor; TürkAkım mavi.
@@ -497,18 +524,36 @@ public sealed class PipelineMapControl : Control
 
         if (n.IsStation)
         {
-            Brush fill = HealthBrush(snap.Health);
-            var c = ((SolidColorBrush)fill).Color;
+            var units = _source?.UnitHealths(n.Id) ?? Array.Empty<UnitHealth>();
+            double worst = snap.Health; // Node() = en kotu (min); alarm hep buna bakar
+            // Ozet (kenar/dis hare) rengi: kullanicinin sectigi toplama kuralina gore.
+            Color summaryC = HealthColor(HealthAgg.Combine(units, _outlineAgg, snap.Health));
 
-            if (snap.Health < 20) // kritik: genis isi haresi + yanip sonen halka
+            if (worst < _criticalThreshold) // kritik: genis isi haresi + yanip sonen halka
             {
                 dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(24, 0xE7, 0x4C, 0x3C)), null, p, r + 26, r + 26);
                 double pulse = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 300.0);
                 byte a = (byte)(40 + pulse * 190);
                 dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(a, 0xE7, 0x4C, 0x3C)), 3), p, r + 10, r + 10);
             }
-            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, c.R, c.G, c.B)), null, p, r + 6, r + 6);
-            dc.DrawEllipse(fill, bgPen, p, r, r);
+            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, summaryC.R, summaryC.G, summaryC.B)), null, p, r + 6, r + 6);
+
+            if (_healthMode == HealthDisplayMode.Pie && units.Count > 1)
+            {
+                DrawHealthPie(dc, p, r, units, summaryC, nodeScale);
+            }
+            else
+            {
+                double fillH; bool gray = false;
+                if (_healthMode == HealthDisplayMode.Average)
+                    fillH = HealthAgg.Combine(units, HealthAggregate.Average, snap.Health);
+                else if (_healthMode == HealthDisplayMode.Pie && units.Count == 1)
+                { fillH = units[0].Health; gray = !units[0].HasTelemetry; }
+                else
+                    fillH = worst; // En Kotu modu (ya da unitesiz kaynak → en kotu)
+                Brush fill = gray ? new SolidColorBrush(UnknownCol) : HealthBrush(fillH);
+                dc.DrawEllipse(fill, bgPen, p, r, r);
+            }
             return;
         }
 
@@ -582,6 +627,44 @@ public sealed class PipelineMapControl : Control
                 dc.DrawEllipse(new SolidColorBrush(Bg), new Pen(colBrush, Math.Max(1.5, 2.4 * nodeScale)), p, r, r);
                 break;
         }
+    }
+
+    // Istasyon dairesini unite basina esit dilimlere boler; her dilim o unitenin
+    // sagligiyla boyanir (telemetrisi yoksa gri). Ustte ozet renginde belirgin
+    // kenar halkasi -> uzaklasinca bile bir bakista okunur.
+    private void DrawHealthPie(DrawingContext dc, Point center, double r,
+        IReadOnlyList<UnitHealth> units, Color summaryC, double nodeScale)
+    {
+        int n = units.Count;
+        // Dilim ayırıcıları: siyah, %5 opaklık (alfa 0x0D) — çok soluk ayırıcı çizgi.
+        var sepPen = new Pen(new SolidColorBrush(Color.FromArgb(0x0D, 0x00, 0x00, 0x00)), Math.Max(0.6, 0.9 * nodeScale));
+        for (int i = 0; i < n; i++)
+        {
+            double a0 = -90 + 360.0 * i / n;
+            double a1 = -90 + 360.0 * (i + 1) / n;
+            Color col = units[i].HasTelemetry ? HealthColor(units[i].Health) : UnknownCol;
+            dc.DrawGeometry(new SolidColorBrush(col), sepPen, WedgeGeometry(center, r, a0, a1));
+        }
+        // Ozet kenar: okunurluk icin belirgin halka (en kotu ya da ortalama rengi).
+        dc.DrawEllipse(null, new Pen(new SolidColorBrush(summaryC), Math.Max(1.6, 2.4 * nodeScale)), center, r, r);
+    }
+
+    // Merkezden a0->a1 (derece) arasi pasta dilimi.
+    private static Geometry WedgeGeometry(Point c, double r, double a0deg, double a1deg)
+    {
+        double a0 = a0deg * Math.PI / 180, a1 = a1deg * Math.PI / 180;
+        var p0 = new Point(c.X + r * Math.Cos(a0), c.Y + r * Math.Sin(a0));
+        var p1 = new Point(c.X + r * Math.Cos(a1), c.Y + r * Math.Sin(a1));
+        var g = new StreamGeometry();
+        using (var ctx = g.Open())
+        {
+            ctx.BeginFigure(c, true, true);
+            ctx.LineTo(p0, true, false);
+            ctx.ArcTo(p1, new Size(r, r), 0, (a1deg - a0deg) > 180,
+                SweepDirection.Clockwise, true, false);
+        }
+        g.Freeze();
+        return g;
     }
 
     // Aktif (izole) bolgenin adini merkeze parlak cizer. Izolasyon yokken
@@ -929,10 +1012,22 @@ public sealed class PipelineMapControl : Control
             if (n.IsStation)
             {
                 var snap = _source.Node(n.Id);
-                dot = ((SolidColorBrush)HealthBrush(snap.Health)).Color;
-                string durum = snap.Health >= 70 ? "Sağlıklı" : snap.Health >= 40 ? "Uyarı"
-                             : snap.Health >= 20 ? "Riskli" : "Kritik";
-                rows = new[] { $"Durum: {durum}   %{snap.Health:0}", $"RUL: {snap.Rul:0} döngü" };
+                var units = _source.UnitHealths(n.Id);
+                // Basliktaki saglik = gorunum moduyla tutarli ozet (pasta → kenar kurali).
+                double shown = _healthMode == HealthDisplayMode.Average
+                    ? HealthAgg.Combine(units, HealthAggregate.Average, snap.Health)
+                    : _healthMode == HealthDisplayMode.Pie
+                        ? HealthAgg.Combine(units, _outlineAgg, snap.Health)
+                        : snap.Health;
+                dot = HealthColor(shown);
+                string durum = shown >= 70 ? "Sağlıklı" : shown >= 40 ? "Uyarı"
+                             : shown >= 20 ? "Riskli" : "Kritik";
+                var rowList = new List<string> { $"Durum: {durum}   %{shown:0}", $"RUL: {snap.Rul:0} döngü" };
+                // Pasta modunda ünite başına kırılım.
+                if (_healthMode == HealthDisplayMode.Pie && units.Count > 1)
+                    foreach (var u in units)
+                        rowList.Add(u.HasTelemetry ? $"  {u.UnitId}: %{u.Health:0}" : $"  {u.UnitId}: veri yok");
+                rows = rowList.ToArray();
             }
             else if (n.Type == "STORAGE")
             { dot = NodeTypeColor(n.Type); rows = new[] { $"Depo doluluk: %{_source.Level(n.Id):0}" }; }

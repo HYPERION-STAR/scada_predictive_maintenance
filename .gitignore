@@ -45,12 +45,15 @@ BOTAS_Dijital_Ikiz_Proje_Plani.pdf
 botas_live_snapshot.json
 btaş.jpg
 build_topology.py
+build_snapshot.py
 PIPELINE_MAP_TODO.md
 scada_nodes.json
 scada_segments.json
 scada_topology.json
+scada_dev_snapshot.json
 chart.jpeg
 AI_HANDOFF.md
 DECISIONS.md
 UI_POLISH_IDEAS.md
+STATION_HEALTH_DISPLAY_DECISIONS.md
 ScadaClient/

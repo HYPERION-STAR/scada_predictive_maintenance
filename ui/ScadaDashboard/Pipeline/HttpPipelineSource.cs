@@ -63,6 +63,9 @@ public sealed class HttpPipelineSource : IPipelineSource
     public StationSensors Sensors(string id) => _sensors.TryGetValue(id, out var v) ? v : default;
     public double Level(string id) => 0; // Hub'dan depo doluluk ileride eklenecek
 
+    // Hub düğüm bazlı sağlık verir (ünite kırılımı yok) → boş; harita tek renk dolguya düşer.
+    public IReadOnlyList<UnitHealth> UnitHealths(string id) => Array.Empty<UnitHealth>();
+
     private sealed class HubState
     {
         public List<HubNode> Nodes { get; set; } = new();

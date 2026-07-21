@@ -78,10 +78,12 @@ public sealed class PipelineMapControl : Control
     public HashSet<string> HiddenCategories { get; } = new();
 
     // --- Katman gorunurlugu (ozellestirme; "Katmanlar" menusu doldurur) ---
-    private bool _showProvinces = true, _showGeoLabels = true, _showFlow = true;
+    private bool _showProvinces = true, _showGeoLabels = true, _showFlow = true, _showGrid = false;
     public bool ShowProvinceBorders { get => _showProvinces; set { _showProvinces = value; InvalidateVisual(); } }
     public bool ShowGeoLabels { get => _showGeoLabels; set { _showGeoLabels = value; InvalidateVisual(); } }
     public bool ShowFlowArrows { get => _showFlow; set { _showFlow = value; InvalidateVisual(); } }
+    // Enlem/boylam ızgarası (koordinat izgarasi); varsayilan kapali.
+    public bool ShowGrid { get => _showGrid; set { _showGrid = value; InvalidateVisual(); } }
 
     // --- Saglik gorunumu (ust bar "Saglik gorunumu" menusu doldurur) ---
     // Daire dolgusu: pasta (unite basina dilim) / ortalama / en kotu. Alarm HER
@@ -120,7 +122,7 @@ public sealed class PipelineMapControl : Control
         new("İRAN", 37.8, 45.9, GeoKind.Country),
         new("IRAK", 35.4, 43.9, GeoKind.Country),
         new("SURİYE", 35.1, 38.6, GeoKind.Country),
-        new("RUSYA", 44.6, 37.8, GeoKind.Country),
+        new("RUSYA", 43.5, 37.8, GeoKind.Country),
     };
 
     // Adi haritada varsayilan olarak gorunen onemli sehirler (istasyon dugumleri).
@@ -136,6 +138,13 @@ public sealed class PipelineMapControl : Control
         : n.Type is "BORDER" or "OFFTAKE" or "STORAGE" ? n.Type
         : n.Type is "PS" or "PT" or "OILDEPO" ? "OIL" // petrol pompa / depo
         : "OTHER";
+
+    // Tiklaninca detay paneli acan (menusu olan) dugumler: gaz kompresor istasyonu,
+    // ham petrol pompa/terminal, gaz/petrol deposu. Digerleri (sinir/cikis/kavsak/
+    // uniteli olmayan CS vb.) menu acmaz -> etkilesimli degil: hover imleci, tiklama
+    // ve cokusme (cluster) balonunda gosterilmez. Kural MapWindow.OnNodeClicked ile ayni.
+    internal static bool IsInteractive(PNode n) =>
+        n.IsStation || n.Type is "PS" or "PT" or "STORAGE" or "OILDEPO";
 
     private readonly Dictionary<string, Point> _screen = new();
     // Segment ekran noktalari (polyline guzergah; hover mesafesi icin cache).
@@ -165,6 +174,8 @@ public sealed class PipelineMapControl : Control
     private Geometry? _provGeo;
     private Geometry? _seaGeo;
     private double _pkW, _pkH, _pkZoom = 1, _pkPanX, _pkPanY;
+    // Projeksiyon sinirlari cache (dugum kumesi degisince — kaynak/canli feed — yeniden kurulur).
+    private double _pkMinLat, _pkMaxLat, _pkMinLon, _pkMaxLon;
 
     // Deniz alanlari (lat/lon [lon,lat] halkalari): kara zemininden "su" oyar.
     // Kara (Turkiye) tarafi kenarlar bilerek kiyinin icine tasar ki deniz ile
@@ -196,6 +207,12 @@ public sealed class PipelineMapControl : Control
 
     // Zoom + pan durumu.
     private double _zoom = 1, _panX, _panY;
+    // OnRender'da hesaplanir: projeksiyon menzili genisletilmis olsa bile Turkiye'yi
+    // eski tam-gorunum boyutunda cerceveleyen zoom (cift tik / "Tumu" bunu kullanir).
+    private double _fitZoom = 1;
+    // Ilk gercek render'da bir kez Turkiye'ye cerceveler (varsayilan gorunum) — boylece
+    // acilis, genisletilmis menzilin tamamini degil Turkiye'yi gosterir.
+    private bool _needsInitialFit = true;
     private bool _dragging, _moved;
     private Point _dragStart;
     private double _panStartX, _panStartY;
@@ -272,19 +289,59 @@ public sealed class PipelineMapControl : Control
         var nodes = PipelineTopology.Nodes;
         bool hasMap = TurkeyMap.Provinces.Count > 0 && _maxLon > _minLon;
 
+        // Projeksiyon sinirlari: Turkiye il kutusu + canli feed'den gelen TUM makul dugum
+        // koordinatlari. Boylece menzil disi gelen dugumler (or. Mavi Akim / Rusya sinir
+        // girisi ~48°K) kirpilmadan gercek goreli konumlarinda cizilir; harita gerektigi
+        // kadar genis alani kapsar. Sacma/eksik (0,0) ya da bolge disi koordinatlar tum
+        // haritayi bozmasin diye genis bir bolgesel bant (25–55°K, 15–60°D) ile elenir.
+        double pMinLat = _minLat, pMaxLat = _maxLat, pMinLon = _minLon, pMaxLon = _maxLon;
+        if (hasMap)
+            foreach (var n in nodes)
+            {
+                if (n.Lat is < 25 or > 55 || n.Lon is < 15 or > 60) continue; // bolge disi: yok say
+                if (n.Lat < pMinLat) pMinLat = n.Lat; if (n.Lat > pMaxLat) pMaxLat = n.Lat;
+                if (n.Lon < pMinLon) pMinLon = n.Lon; if (n.Lon > pMaxLon) pMaxLon = n.Lon;
+            }
+
+        // Ikon boyutu duzeltmesi: menzil genisleyip harita kuculdugunde (or. ~48°K dugum
+        // sinirlari 2 kat uzatir) sabit-px ikonlar orantisiz BUYUK gorunur. Ikonlari
+        // harita olcegiyle orantili kucultup eski goreli boyutu korur. Genisleme yoksa
+        // (Turkiye tam kaplar) oran = 1 → ikonlar aynen eskisi gibi.
+        double iconScaleAdj = 1;
+
         Func<double, double, Point> geoProj;
         if (hasMap)
         {
             // En-boy düzeltmeli projeksiyon: boylam dereceleri enlem cos'u kadar kısalır.
-            double midLat = (_minLat + _maxLat) / 2.0;
+            double midLat = (pMinLat + pMaxLat) / 2.0;
             double k = Math.Cos(midLat * Math.PI / 180.0);
-            double scaledW = (_maxLon - _minLon) * k;
-            double scaledH = (_maxLat - _minLat);
+            double scaledW = (pMaxLon - pMinLon) * k;
+            double scaledH = (pMaxLat - pMinLat);
             const double pad = 78; // komsu deniz/ulke etiketlerine yer birak
             double scale = Math.Min((w - 2 * pad) / scaledW, (h - 2 * pad) / scaledH);
             double ox = (w - scaledW * scale) / 2.0;
             double oy = (h - scaledH * scale) / 2.0;
-            geoProj = (lat, lon) => new Point(ox + (lon - _minLon) * k * scale, oy + (_maxLat - lat) * scale);
+            geoProj = (lat, lon) => new Point(ox + (lon - pMinLon) * k * scale, oy + (pMaxLat - lat) * scale);
+
+            // Turkiye taban olcegi (genisletilmemis): ikon oranini buna gore normalize et.
+            double refK = Math.Cos((_minLat + _maxLat) / 2.0 * Math.PI / 180.0);
+            double refScale = Math.Min((w - 2 * pad) / ((_maxLon - _minLon) * refK),
+                                       (h - 2 * pad) / (_maxLat - _minLat));
+            iconScaleAdj = Math.Clamp(scale / refScale, 0.45, 1.0);
+            // Turkiye'yi taban (genisletilmemis) olcegine getiren zoom: cift tik odagi.
+            _fitZoom = Math.Clamp(refScale / scale, 0.45, 8.0);
+
+            // Varsayilan gorunum: acilista bir kez Turkiye'ye cerceve (menzil kuzeye
+            // genisletilmis olsa bile). Cizimden ONCE zoom/pan set edilir → tek karede,
+            // titremeden. Bundan sonra gorunumu kullanici (cift tik/teker/pan) yonetir.
+            if (_needsInitialFit)
+            {
+                var cFit = geoProj((_minLat + _maxLat) / 2, (_minLon + _maxLon) / 2);
+                _zoom = _fitZoom;
+                _panX = w / 2 - cFit.X * _zoom;
+                _panY = h / 2 - cFit.Y * _zoom;
+                _needsInitialFit = false;
+            }
         }
         else
         {
@@ -308,13 +365,16 @@ public sealed class PipelineMapControl : Control
         if (hasMap)
         {
             if (_provGeo == null || _pkW != w || _pkH != h
-                || _pkZoom != _zoom || _pkPanX != _panX || _pkPanY != _panY)
+                || _pkZoom != _zoom || _pkPanX != _panX || _pkPanY != _panY
+                || _pkMinLat != pMinLat || _pkMaxLat != pMaxLat
+                || _pkMinLon != pMinLon || _pkMaxLon != pMaxLon)
             {
                 _provGeo = BuildRingGeometry(TurkeyMap.Provinces.SelectMany(p => p.Rings), project);
                 // Deniz bloklari: kose yuvarlatmayla yumusatilir (dikdortgen his kalkar);
                 // Turkiye sinirlari keskin kalir -> dusuk detayli kiyi korunur.
                 _seaGeo = BuildRoundedRingGeometry(SeaPolys, project, 22 * _zoom);
                 _pkW = w; _pkH = h; _pkZoom = _zoom; _pkPanX = _panX; _pkPanY = _panY;
+                _pkMinLat = pMinLat; _pkMaxLat = pMaxLat; _pkMinLon = pMinLon; _pkMaxLon = pMaxLon;
             }
 
             // Denizler: kara zemininden su (mavi) oyar -> kiyilar belirir.
@@ -348,12 +408,25 @@ public sealed class PipelineMapControl : Control
         }
 
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        if (_showGrid) DrawGraticule(dc, project, dpi);
         if (_showGeoLabels) DrawGeoLabels(dc, project, dpi);
         DrawRegionLabels(dc, project, dpi);
 
+        // Dugum konumu: projeksiyon sinirlari yukarida canli feed'deki tum makul
+        // dugumleri kapsayacak sekilde genisletildiginden, bunlar zaten harita icine
+        // duser. Bu sikistirma yalnizca bir EMNIYET agi: bolgesel bant disinda elenen
+        // (or. 0,0 / bozuk) koordinatlar yine de gorunur kenara cekilir, kaybolmaz.
+        // Sikistirma TABAN projeksiyonunda (zoom/pan oncesi): harita/segment geometrisi
+        // bozulmaz, yakinlasip kaydirinca dugum normal hareket eder.
+        const double edgeInset = 10;
         _screen.Clear();
         foreach (var n in nodes)
-            _screen[n.Id] = project(n.Lat, n.Lon);
+        {
+            var b = geoProj(n.Lat, n.Lon); // taban (zoom/pan'siz) nokta
+            b.X = Math.Clamp(b.X, edgeInset, w - edgeInset);
+            b.Y = Math.Clamp(b.Y, edgeInset, h - edgeInset);
+            _screen[n.Id] = new Point(b.X * _zoom + _panX, b.Y * _zoom + _panY);
+        }
 
         double phase = (Environment.TickCount % 2000) / 2000.0;
         var lowCol = Color.FromRgb(0x4E, 0xCD, 0xC4);
@@ -462,7 +535,7 @@ public sealed class PipelineMapControl : Control
         // --- Düğümler ---
         // Daire boyutu zoom'a bagli: tam gorunumde kucuk, yakinlastikca buyur
         // (yakin sehir dugumleri ust uste binmesin).
-        double nodeScale = Math.Clamp(0.55 + 0.42 * (_zoom - 1), 0.4, 1.7);
+        double nodeScale = Math.Clamp(0.55 + 0.42 * (_zoom - 1), 0.4, 1.7) * iconScaleAdj;
 
         // Etiket kalabaligini onle: varsayilan olarak yalniz secili/hover; yeterince
         // yakinlasinca istasyon adlari da gorunur.
@@ -678,6 +751,47 @@ public sealed class PipelineMapControl : Control
         dc.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2));
     }
 
+    // Enlem/boylam koordinat ızgarasını çizer. Projeksiyon lat->Y, lon->X biçiminde
+    // ayrık olduğundan meridyenler tam dikey, paraleller tam yatay çizgilerdir.
+    // Aralık zoom'a göre sıklaşır; çizgiler soluk, kenarda derece etiketli.
+    private void DrawGraticule(DrawingContext dc, Func<double, double, Point> project, double dpi)
+    {
+        double w = ActualWidth, h = ActualHeight;
+        double step = _zoom < 1.5 ? 2 : _zoom < 3 ? 1 : _zoom < 6 ? 0.5 : 0.25;
+
+        var linePen = new Pen(new SolidColorBrush(Color.FromArgb(40, MutedCol.R, MutedCol.G, MutedCol.B)), 0.6);
+        var lblCol = Color.FromArgb(165, MutedCol.R, MutedCol.G, MutedCol.B);
+
+        // Meridyenler (sabit boylam): X yalnız boylama bağlı -> dikey çizgi.
+        for (double lon = Math.Ceiling(20 / step) * step; lon <= 50; lon += step)
+        {
+            double x = project(0, lon).X;
+            if (x < 0 || x > w) continue;
+            dc.DrawLine(linePen, new Point(x, 0), new Point(x, h));
+            var ft = Text(FormatDeg(lon, isLat: false), 9.5, lblCol, dpi);
+            dc.DrawText(ft, new Point(x + 3, 3));
+        }
+        // Paraleller (sabit enlem): Y yalnız enleme bağlı -> yatay çizgi.
+        for (double lat = Math.Ceiling(28 / step) * step; lat <= 48; lat += step)
+        {
+            double y = project(lat, 0).Y;
+            if (y < 0 || y > h) continue;
+            dc.DrawLine(linePen, new Point(0, y), new Point(w, y));
+            var ft = Text(FormatDeg(lat, isLat: true), 9.5, lblCol, dpi);
+            dc.DrawText(ft, new Point(3, y + 2));
+        }
+    }
+
+    // Koordinat etiketi: "37°D" (Doğu) / "40°K" (Kuzey). Ondalıklı adımda .5 gösterir.
+    private static string FormatDeg(double v, bool isLat)
+    {
+        double a = Math.Abs(v);
+        string num = a == Math.Floor(a) ? a.ToString("0", CultureInfo.InvariantCulture)
+                                        : a.ToString("0.##", CultureInfo.InvariantCulture);
+        string hemi = isLat ? (v >= 0 ? "K" : "G") : (v >= 0 ? "D" : "B");
+        return $"{num}°{hemi}";
+    }
+
     // Deniz / komsu ulke etiketlerini cizer (soluk, arka planda baglam).
     private void DrawGeoLabels(DrawingContext dc, Func<double, double, Point> project, double dpi)
     {
@@ -799,7 +913,7 @@ public sealed class PipelineMapControl : Control
 
         var click = e.GetPosition(this);
         foreach (var n in PipelineTopology.Nodes)
-            if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
+            if (!IsHidden(n) && IsInteractive(n) && _screen.TryGetValue(n.Id, out var p) && (click - p).Length <= 26)
             { NodeClicked?.Invoke(n); break; }
     }
 
@@ -864,7 +978,7 @@ public sealed class PipelineMapControl : Control
     {
         var list = new List<PNode>();
         foreach (var n in PipelineTopology.Nodes)
-            if (!IsHidden(n) && _screen.TryGetValue(n.Id, out var p) && (m - p).Length <= rad)
+            if (!IsHidden(n) && IsInteractive(n) && _screen.TryGetValue(n.Id, out var p) && (m - p).Length <= rad)
                 list.Add(n);
         list.Sort((a, b) => (m - _screen[a.Id]).Length.CompareTo((m - _screen[b.Id]).Length));
         if (list.Count > 8) list.RemoveRange(8, list.Count - 8);
@@ -891,7 +1005,26 @@ public sealed class PipelineMapControl : Control
 
     protected override void OnMouseDoubleClick(MouseButtonEventArgs e)
     {
-        _zoom = 1; _panX = 0; _panY = 0; // tam sigdir
+        FitTurkey(); // eskisi gibi: Turkiye'yi cerceveler (genisletilmis menzili degil)
+    }
+
+    /// <summary>
+    /// Turkiye il kutusunu tam-gorunum boyutunda cerceveler ve ortalar. Projeksiyon
+    /// menzili canli feed'le kuzeye (or. ~48°K sinir dugumu) genisletilmis olsa bile
+    /// harita hep Turkiye'ye odaklanir; menzil disi kuzey dugumleri gorunum disinda
+    /// kalir (teker ile uzaklasilir). _fitZoom OnRender'da hesaplanir.
+    /// </summary>
+    public void FitTurkey()
+    {
+        EnsureBbox();
+        double w = ActualWidth, h = ActualHeight;
+        if (!_geoReady || _maxLon <= _minLon || w < 40 || h < 40)
+        { _zoom = 1; _panX = 0; _panY = 0; InvalidateVisual(); return; }
+
+        var c = GeoAt((_minLat + _maxLat) / 2, (_minLon + _maxLon) / 2); // taban ekran merkezi
+        _zoom = _fitZoom;
+        _panX = w / 2 - c.X * _zoom;
+        _panY = h / 2 - c.Y * _zoom;
         InvalidateVisual();
     }
 
@@ -915,7 +1048,7 @@ public sealed class PipelineMapControl : Control
     }
 
     /// <summary>Tam Turkiye gorunumune don.</summary>
-    public void ResetView() { _activeRegion = null; _zoom = 1; _panX = 0; _panY = 0; InvalidateVisual(); }
+    public void ResetView() { _activeRegion = null; FitTurkey(); }
 
     // Aktif (izole) bolge: digerleri soluklasir, o bolgeye odaklanilir.
     private string? _activeRegion;

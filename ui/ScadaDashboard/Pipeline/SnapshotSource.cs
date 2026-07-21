@@ -253,7 +253,13 @@ public class SnapshotSource : IPipelineSource
             w.GetValueOrDefault("s_2_discharge_pressure_bar"));
     }
 
-    // Depo doluluk yüzdesi (UGS telemetrisinden).
-    public double Level(string id) =>
-        Telem(id)?.GetValueOrDefault("s_storage_level_pct") ?? 0;
+    // Depo doluluk yüzdesi. Gaz UGS/LNG/FSRU → s_storage_level_pct; ham petrol
+    // deposu (oil_storage) farklı ada sahip → s_tank_level_pct. İkisini de dene.
+    public double Level(string id)
+    {
+        var t = Telem(id);
+        if (t == null) return 0;
+        return t.TryGetValue("s_storage_level_pct", out var v) ? v
+             : t.GetValueOrDefault("s_tank_level_pct");
+    }
 }

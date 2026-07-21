@@ -97,9 +97,9 @@ public static class ApiSnapshotLoader
             if (nodes[i].Type == "CS" && stationUnits.ContainsKey(nodes[i].Id))
                 nodes[i] = nodes[i] with { IsStation = true };
 
-        // İki ucu da bilinen düğüme bağlı segmentleri tut.
-        var nodeIds = new HashSet<string>(nodes.Select(n => n.Id));
-        segments.RemoveAll(s => !nodeIds.Contains(s.From) || !nodeIds.Contains(s.To));
+        // Segmentin ucundaki düğüm feed'de gelmemişse (ör. Rusya sınır girişi) güzergâh
+        // geometrisinden sentezle; aksi halde hat düşürülüp haritada görünmez olur.
+        TopologyReconciler.EnsureSegmentEndpoints(nodes, segments);
 
         return new SnapshotData
         {

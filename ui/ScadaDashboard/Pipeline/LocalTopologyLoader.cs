@@ -65,9 +65,9 @@ public static class LocalTopologyLoader
                 geometry));
         }
 
-        // İki ucu da bilinen düğüme bağlı segmentleri tut (kopuk uçları at).
-        var nodeIds = new HashSet<string>(nodes.Select(n => n.Id));
-        segments.RemoveAll(s => !nodeIds.Contains(s.From) || !nodeIds.Contains(s.To));
+        // Segmentin ucundaki düğüm dosyada yoksa (ör. Rusya sınır girişi) güzergâh
+        // geometrisinden sentezle; aksi halde hat düşürülüp haritada görünmez olur.
+        TopologyReconciler.EnsureSegmentEndpoints(nodes, segments);
 
         return new SnapshotData
         {

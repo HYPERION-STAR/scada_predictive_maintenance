@@ -59,6 +59,8 @@
                                           Checked="LayerGeo" Unchecked="LayerGeo"/>
                                 <CheckBox Content="Akış göstergeleri" IsChecked="True" Margin="0,3" Foreground="{DynamicResource TextBrush}"
                                           Checked="LayerFlow" Unchecked="LayerFlow"/>
+                                <CheckBox Content="Koordinat ızgarası (enlem/boylam)" IsChecked="False" Margin="0,3" Foreground="{DynamicResource TextBrush}"
+                                          Checked="LayerGrid" Unchecked="LayerGrid"/>
                             </StackPanel>
                         </Border>
                     </Popup>

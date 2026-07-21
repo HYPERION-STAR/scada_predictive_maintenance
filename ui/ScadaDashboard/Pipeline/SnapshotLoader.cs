@@ -127,14 +127,15 @@ public static class SnapshotLoader
             }
         }
 
-        // Segmentleri iki ucu da bilinen düğümlere bağlı olanlarla sınırla.
-        segments.RemoveAll(s => !rawNodes.ContainsKey(s.From) || !rawNodes.ContainsKey(s.To));
-
         // İstasyon = ünitesi olan CS düğümü (sağlık proxy'si üniteden türetilir).
         var nodes = new List<PNode>(rawNodes.Count);
         foreach (var (id, r) in rawNodes)
             nodes.Add(new PNode(id, r.Name, r.Type, r.Lat, r.Lon,
                 r.Type == "CS" && stationUnits.ContainsKey(id), r.Region));
+
+        // Segmentin ucundaki düğüm dosyada yoksa (ör. Rusya sınır girişi) güzergâh
+        // geometrisinden sentezle; aksi halde hat düşürülüp haritada görünmez olur.
+        TopologyReconciler.EnsureSegmentEndpoints(nodes, segments);
 
         return new SnapshotData
         {

@@ -438,6 +438,8 @@ public partial class MapWindow : Window
     { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowGeoLabels = c.IsChecked == true; }
     private void LayerFlow(object sender, RoutedEventArgs e)
     { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowFlowArrows = c.IsChecked == true; }
+    private void LayerGrid(object sender, RoutedEventArgs e)
+    { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowGrid = c.IsChecked == true; }
 
     // Genel makine panelini ac (5 jenerik makine).
     private void OpenDashboard_Click(object sender, RoutedEventArgs e) => new MainWindow().Show();

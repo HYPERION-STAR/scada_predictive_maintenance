@@ -14,7 +14,9 @@ public class SnapshotSource : IPipelineSource
 {
     private const double VibHealthy = 2.0;   // mm/s → %100
     private const double VibDead = 9.0;      // mm/s → %0
-    // Geçici test: dar bant — metadata max ~2.5; 1.5 poll başına sahte sızıntı sıçratıyordu.
+    // Sızıntı eşiği (kütle dengesizliği %). Normal bant tavanı ~2.5 (metadata);
+    // 1.5 poll başına sahte sızıntı üretiyordu, bu yüzden gürültünün üstünde ama
+    // gerçek dengesizliği yakalayacak şekilde 2.35'e sabitlendi.
     private const double LeakImbalancePct = 2.35;
     private const double LeakClearPct = 2.0;       // histerezis: altına inince sayac sıfırlanır
     private const int LeakPollsRequired = 3;         // canlı: aynı segmentte ardışık poll (≈15 sn @5s)

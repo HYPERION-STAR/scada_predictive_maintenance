@@ -1152,8 +1152,9 @@ public sealed class PipelineMapControl : Control
                         ? HealthAgg.Combine(units, _outlineAgg, snap.Health)
                         : snap.Health;
                 dot = HealthColor(shown);
-                string durum = shown >= 70 ? "Sağlıklı" : shown >= 40 ? "Uyarı"
-                             : shown >= 20 ? "Riskli" : "Kritik";
+                string durum = shown < _criticalThreshold ? "Kritik"
+                             : shown >= 70 ? "Sağlıklı"
+                             : shown >= 40 ? "Uyarı" : "Riskli";
                 var rowList = new List<string> { $"Durum: {durum}   %{shown:0}", $"RUL: {snap.Rul:0} döngü" };
                 // Pasta modunda ünite başına kırılım.
                 if (_healthMode == HealthDisplayMode.Pie && units.Count > 1)

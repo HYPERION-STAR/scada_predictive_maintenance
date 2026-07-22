@@ -244,10 +244,16 @@ public partial class MapWindow : Window
         double shown = ShownHealth(units, snap.Health);
         DetailRul.Text = $"{snap.Rul:0} döngü";
         DetailHealth.Text = $"%{shown:0}";
-        string durum = shown >= 70 ? "SAĞLIKLI" : shown >= 40 ? "UYARI"
-                     : shown >= 20 ? "RİSKLİ" : "KRİTİK";
+        // "KRİTİK" sınırı üst bar alarm rozetiyle aynı eşiği (CriticalHealthThreshold)
+        // kullanır; eşik değişince panel ile rozet tutarlı kalır (aksi halde rozet
+        // "KRİTİK" sayarken panel "RİSKLİ" gösterebiliyordu).
+        bool kritik = shown < _settings.CriticalHealthThreshold;
+        string durum = kritik ? "KRİTİK"
+                     : shown >= 70 ? "SAĞLIKLI"
+                     : shown >= 40 ? "UYARI" : "RİSKLİ";
         DetailStatus.Text = durum;
-        DetailStatusBox.Background = new SolidColorBrush(HealthColorCs(shown));
+        DetailStatusBox.Background = new SolidColorBrush(
+            kritik ? Color.FromRgb(0xE7, 0x4C, 0x3C) : HealthColorCs(shown));
         UpdateUnitBreakdown(units);
     }
 

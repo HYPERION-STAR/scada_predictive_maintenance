@@ -1139,6 +1139,7 @@ public sealed class PipelineMapControl : Control
         else
         {
             var n = PipelineTopology.NodeById(_hoverId);
+            if (n is null) return; // hover id düğüm listesinde yoksa balon çizme
             title = n.Name; sub = n.Id;
             if (n.IsStation)
             {

@@ -67,5 +67,6 @@ public static class PipelineTopology
         _segments = _defaultSegments;
     }
 
-    public static PNode NodeById(string id) => _nodes.First(n => n.Id == id);
+    /// <summary>Id'ye karşılık gelen düğüm; yoksa null (çağıran korur — çökme yerine).</summary>
+    public static PNode? NodeById(string id) => _nodes.FirstOrDefault(n => n.Id == id);
 }

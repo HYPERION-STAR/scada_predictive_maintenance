@@ -519,8 +519,10 @@ public partial class MapWindow : Window
         {
             if (s.From != n.Id && s.To != n.Id) continue;
             string otherId = s.From == n.Id ? s.To : s.From;
+            var other = PipelineTopology.NodeById(otherId);
+            if (other == null) continue; // uç düğüm topolojide yoksa satırı atla (çökme yerine)
             if (count > 0) sb.Append('\n');
-            sb.Append($"→ {PipelineTopology.NodeById(otherId).Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
+            sb.Append($"→ {other.Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
             count++;
         }
         DetailPumpConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";
@@ -544,8 +546,10 @@ public partial class MapWindow : Window
         {
             if (s.From != n.Id && s.To != n.Id) continue;
             string otherId = s.From == n.Id ? s.To : s.From;
+            var other = PipelineTopology.NodeById(otherId);
+            if (other == null) continue; // uç düğüm topolojide yoksa satırı atla (çökme yerine)
             if (count > 0) sb.Append('\n');
-            sb.Append($"→ {PipelineTopology.NodeById(otherId).Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
+            sb.Append($"→ {other.Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
             count++;
         }
         DetailStorageConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";

@@ -528,7 +528,11 @@ public partial class MapWindow : Window
             var other = PipelineTopology.NodeById(otherId);
             if (other == null) continue; // uç düğüm topolojide yoksa satırı atla (çökme yerine)
             if (count > 0) sb.Append('\n');
-            sb.Append($"→ {other.Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
+            // Kapasite birimi ürüne göre: gaz hatları mcm/gün; petrol (oil) hattı bu gaz
+            // birimini taşımaz — değeri birimsiz göster (ürün adı türü zaten belirtir).
+            string kapasite = s.Product.StartsWith("gas", StringComparison.OrdinalIgnoreCase)
+                ? $"{s.MaxCapacity:0} mcm/gün" : $"{s.MaxCapacity:0}";
+            sb.Append($"→ {other.Name}   ({s.Product}, {kapasite})");
             count++;
         }
         DetailPumpConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";
@@ -555,7 +559,11 @@ public partial class MapWindow : Window
             var other = PipelineTopology.NodeById(otherId);
             if (other == null) continue; // uç düğüm topolojide yoksa satırı atla (çökme yerine)
             if (count > 0) sb.Append('\n');
-            sb.Append($"→ {other.Name}   ({s.Product}, {s.MaxCapacity:0} mcm/gün)");
+            // Kapasite birimi ürüne göre: gaz hatları mcm/gün; petrol (oil) hattı bu gaz
+            // birimini taşımaz — değeri birimsiz göster (ürün adı türü zaten belirtir).
+            string kapasite = s.Product.StartsWith("gas", StringComparison.OrdinalIgnoreCase)
+                ? $"{s.MaxCapacity:0} mcm/gün" : $"{s.MaxCapacity:0}";
+            sb.Append($"→ {other.Name}   ({s.Product}, {kapasite})");
             count++;
         }
         DetailStorageConns.Text = count > 0 ? sb.ToString() : "Bağlı hat yok.";

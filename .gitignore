@@ -23,8 +23,13 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
-# Temp
+# Temp / backups
 *.tmp
+*.bak
+*.prev
+
+# Local tooling
+.qwen/
 
 # .NET / C# UI (Kisi 3)
 ScadaClient/

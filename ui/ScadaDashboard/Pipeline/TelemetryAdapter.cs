@@ -5,31 +5,25 @@ using ScadaClient.Models.Telemetry;
 
 namespace ScadaDashboard.Pipeline;
 
-/// <summary>Adaptörün ürettiği iki paralel harita: sayısal sensör değerleri ve
-/// varlık başına telemetri kalitesi (TelemetryBase.Quality — GOOD/BAD/…).
-/// İkisi de aynı anahtar uzayını (SnapshotLoader.Norm) kullanır.</summary>
+/// <summary>Adaptörün ürettiği haritalar — değerler, kalite, işletim durumu (pompa status).</summary>
 internal readonly record struct SensorMaps(
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Values,
-    IReadOnlyDictionary<string, string> Quality);
+    IReadOnlyDictionary<string, string> Quality,
+    IReadOnlyDictionary<string, string> Status);
 
 /// <summary>
-/// ScadaClient'ın tipli telemetri DTO'larını (CompressorTelemetry vb.) UI'ın
-/// türetme katmanının beklediği jenerik sensör sözlüğüne çevirir
-/// (ör. "s_7_vibration_de_mm_s" → 5.46). Anahtarlar DTO'lardaki
-/// [JsonPropertyName] değerlerinden okunur — böylece SnapshotSource'un
-/// dosya-tabanlı yoluyla (SnapshotLoader) aynı anahtar uzayı kullanılır.
-/// Her varlığın <see cref="TelemetryBase.Quality"/> alanı da ayrı haritada taşınır
-/// (BAD/UNCERTAIN telemetri UI'da işaretlensin; dosya yolunda bu alan yoktur).
+/// ScadaClient'ın tipli telemetri DTO'larını UI sensör sözlüğüne çevirir.
+/// Gaz (s_7_…) ve petrol pompa (s_vibration_mm_s) alanları aynı haritada durur.
 /// </summary>
 internal static class TelemetryAdapter
 {
-    // DTO tipi → (json alan adı, double property) erişimcileri (yansıma bir kez).
     private static readonly Dictionary<Type, (string Json, PropertyInfo Prop)[]> _cache = new();
 
     public static SensorMaps ToSensorMaps(IReadOnlyDictionary<string, TelemetryBase> live)
     {
         var result = new Dictionary<string, IReadOnlyDictionary<string, double>>();
         var quality = new Dictionary<string, string>();
+        var status = new Dictionary<string, string>();
         foreach (var (key, tel) in live)
         {
             var accessors = Accessors(tel.GetType());
@@ -37,25 +31,35 @@ internal static class TelemetryAdapter
             foreach (var (json, prop) in accessors)
                 vals[json] = (double)prop.GetValue(tel)!;
 
-            // DTO'ya eşlenmeyen ham sayısal alanlar (bilinmeyen entity_type'ın s_*
-            // sensörleri — ör. petrol deposu doluluğu s_storage_level_pct). Tipli
-            // alanları ezmeden ekle; böylece gelen veride olup DTO'da olmayan
-            // sensörler UI türetme katmanına ulaşır.
             if (tel.Extra is { Count: > 0 } extra)
+            {
                 foreach (var (name, je) in extra)
+                {
                     if (je.ValueKind == JsonValueKind.Number && je.TryGetDouble(out var d))
                         vals.TryAdd(name, d);
+                }
+            }
 
-            // Hem sözlük anahtarı hem entity_id ile eriş (SnapshotLoader.Norm kuralı).
+            string st = tel is OilPumpTelemetry op ? op.Status : "";
+            if (st.Length == 0 && tel.Extra != null
+                && tel.Extra.TryGetValue("status", out var sj)
+                && sj.ValueKind == JsonValueKind.String)
+                st = sj.GetString() ?? "";
+
             string k = SnapshotLoader.Norm(key);
-            result[k] = vals; quality[k] = tel.Quality;
+            result[k] = vals;
+            quality[k] = tel.Quality;
+            if (st.Length > 0) status[k] = st;
+
             if (tel.EntityId.Length > 0)
             {
                 string e = SnapshotLoader.Norm(tel.EntityId);
-                result[e] = vals; quality[e] = tel.Quality;
+                result[e] = vals;
+                quality[e] = tel.Quality;
+                if (st.Length > 0) status[e] = st;
             }
         }
-        return new SensorMaps(result, quality);
+        return new SensorMaps(result, quality, status);
     }
 
     private static (string Json, PropertyInfo Prop)[] Accessors(Type type)

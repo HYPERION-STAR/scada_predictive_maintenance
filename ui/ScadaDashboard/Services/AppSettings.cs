@@ -3,50 +3,44 @@ using System.Text.Json;
 
 namespace ScadaDashboard.Services;
 
-/// <summary>Harita veri kaynağı seçimi (ayarlar penceresinden).</summary>
-public enum SourceMode
-{
-    Otomatik,    // SCADA_LIVE_URL > SCADA_HUB_URL > snapshot dosyası > simülasyon
-    Simulasyon,
-    Snapshot,
-    ApiHub,
-    Canli,       // canlı telemetri endpoint'i (snapshot topolojisi + HTTP yoklama)
-    YerelVeri,   // çıkarılan yerel topoloji (scada_nodes.json + scada_segments.json); yalnız topoloji
-}
-
 /// <summary>
-/// Uygulama ayarları. Exe klasöründeki settings.json'a yazılır/okunur;
-/// dosya yoksa varsayılanlar geçerli (Otomatik kaynak seçimi).
+/// Uygulama ayarları. Exe klasöründeki settings.json'a yazılır/okunur.
+/// Tek veri kaynağı: Canlı API (+ isteğe bağlı AI respond overlay).
 /// </summary>
 public sealed class AppSettings
 {
-    public SourceMode SourceMode { get; set; } = SourceMode.Otomatik;
-    public string HubUrl { get; set; } = "";
+    /// <summary>Canlı telemetri endpoint'i (topoloji + sensors sunucudan).</summary>
+    public string LiveUrl { get; set; } = "http://100.114.223.5:8000/api/scada/live_data";
+
+    /// <summary>
+    /// AI/DB uç noktası — health/rul ve hub alanları (zorunlu; yerel proxy yok).
+    /// </summary>
+    public string AiRespondUrl { get; set; } = "http://100.96.102.16:9000";
 
     /// <summary>Açık tema (varsayılan koyu).</summary>
     public bool LightTheme { get; set; } = false;
 
-    /// <summary>Canlı telemetri endpoint'i (Canli modu; topoloji yine snapshot dosyasından).</summary>
-    public string LiveUrl { get; set; } = "http://100.114.223.5:8000/api/scada/live_data";
-
-    /// <summary>Canlı yoklama aralığı (saniye) — ScadaClient PollIntervalSeconds'a geçer.</summary>
+    /// <summary>Canlı yoklama aralığı (saniye).</summary>
     public int PollIntervalSeconds { get; set; } = 5;
 
-    /// <summary>Canlı HTTP istek zaman aşımı (saniye) — ScadaClient TimeoutSeconds'a geçer.</summary>
+    /// <summary>HTTP zaman aşımı (saniye).</summary>
     public int TimeoutSeconds { get; set; } = 15;
 
-    /// <summary>İstasyon dairesi görünümü: pasta (varsayılan) / ortalama / en kötü.</summary>
+    /// <summary>İstasyon dairesi görünümü: pasta / ortalama / en kötü.</summary>
     public Pipeline.HealthDisplayMode HealthDisplayMode { get; set; } = Pipeline.HealthDisplayMode.Pie;
 
-    /// <summary>Pasta kenar rengi özeti: en kötü (varsayılan) / ortalama. Yalnız pasta modunda.</summary>
+    /// <summary>Pasta kenar rengi özeti: en kötü / ortalama.</summary>
     public Pipeline.HealthAggregate HealthOutlineAggregate { get; set; } = Pipeline.HealthAggregate.Worst;
 
-    /// <summary>Kritik alarm eşiği (sağlık %). Alarm HER ZAMAN en kötü üniteye bakar;
-    /// eşik düşürülünce alarm seyrekleşir. Varsayılan 20.</summary>
+    /// <summary>Kritik alarm eşiği (sağlık %).</summary>
     public double CriticalHealthThreshold { get; set; } = 20;
 
-    /// <summary>Pasta dilim ayırıcı rengi (#RRGGBB). Boş = tema varsayılanı (Bg ile karıştırma).</summary>
+    /// <summary>Pasta dilim ayırıcı rengi (#RRGGBB). Boş = tema varsayılanı.</summary>
     public string PieSeparatorColorHex { get; set; } = "";
+
+    // Eski settings.json alanları (yok sayılır; deserialize kırılmasın diye).
+    public string? SourceMode { get; set; }
+    public string? HubUrl { get; set; }
 
     private static string PathFor() =>
         System.IO.Path.Combine(AppContext.BaseDirectory, "settings.json");
@@ -67,8 +61,21 @@ public sealed class AppSettings
     {
         try
         {
+            // Eski alanları yazma — yalnız güncel sözleşme.
+            var dto = new
+            {
+                LiveUrl,
+                AiRespondUrl,
+                LightTheme,
+                PollIntervalSeconds,
+                TimeoutSeconds,
+                HealthDisplayMode,
+                HealthOutlineAggregate,
+                CriticalHealthThreshold,
+                PieSeparatorColorHex,
+            };
             File.WriteAllText(PathFor(),
-                JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+                JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { /* yazılamazsa ayar yalnızca oturumluk kalır */ }
     }

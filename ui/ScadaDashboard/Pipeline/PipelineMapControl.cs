@@ -134,9 +134,10 @@ public sealed class PipelineMapControl : Control
     private bool IsHidden(PNode n) => HiddenCategories.Contains(CategoryOf(n));
 
     private static string CategoryOf(PNode n) =>
-        n.IsStation || n.Type == "CS" ? "CS"
+        // Petrol önce: IsStation olan PS/PT gaz (CS) katmanına düşmesin.
+        n.Type is "PS" or "PT" or "OILDEPO" ? "OIL"
+        : n.IsStation || n.Type == "CS" ? "CS"
         : n.Type is "BORDER" or "OFFTAKE" or "STORAGE" ? n.Type
-        : n.Type is "PS" or "PT" or "OILDEPO" ? "OIL" // petrol pompa / depo
         : "OTHER";
 
     // Tiklaninca detay paneli acan (menusu olan) dugumler: gaz kompresor istasyonu,
@@ -598,11 +599,24 @@ public sealed class PipelineMapControl : Control
         if (n.IsStation)
         {
             var units = _source?.UnitHealths(n.Id) ?? Array.Empty<UnitHealth>();
-            double worst = snap.Health; // Node() = en kotu (min); alarm hep buna bakar
-            // Ozet (kenar/dis hare) rengi: kullanicinin sectigi toplama kuralina gore.
+            bool anyAi = false;
+            foreach (var u in units) if (u.HasTelemetry) { anyAi = true; break; }
+
+            // AI / canlı kondisyon yok → gri (yerel gaz proxy yok; petrolde canlı skor yoksa)
+            if (!anyAi)
+            {
+                dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, UnknownCol.R, UnknownCol.G, UnknownCol.B)), null, p, r + 6, r + 6);
+                dc.DrawEllipse(new SolidColorBrush(UnknownCol), bgPen, p, r, r);
+                // Petrol istasyonu: ince zeytin kenar — gaz dairesinden ayırt
+                if (n.Type is "PS" or "PT")
+                    dc.DrawEllipse(null, new Pen(new SolidColorBrush(OilCol), Math.Max(1.2, 1.8 * nodeScale)), p, r + 1, r + 1);
+                return;
+            }
+
+            double worst = snap.Health;
             Color summaryC = HealthColor(HealthAgg.Combine(units, _outlineAgg, snap.Health));
 
-            if (worst < _criticalThreshold) // kritik: genis isi haresi + yanip sonen halka
+            if (worst < _criticalThreshold)
             {
                 dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(24, 0xE7, 0x4C, 0x3C)), null, p, r + 26, r + 26);
                 double pulse = 0.5 + 0.5 * Math.Sin(Environment.TickCount / 300.0);
@@ -623,10 +637,13 @@ public sealed class PipelineMapControl : Control
                 else if (_healthMode == HealthDisplayMode.Pie && units.Count == 1)
                 { fillH = units[0].Health; gray = !units[0].HasTelemetry; }
                 else
-                    fillH = worst; // En Kotu modu (ya da unitesiz kaynak → en kotu)
+                    fillH = worst;
                 Brush fill = gray ? new SolidColorBrush(UnknownCol) : HealthBrush(fillH);
                 dc.DrawEllipse(fill, bgPen, p, r, r);
             }
+            // Petrol: pasta/daire + ince zeytin çerçeve (gaz ile karışmasın)
+            if (n.Type is "PS" or "PT")
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(OilCol), Math.Max(1.2, 1.8 * nodeScale)), p, r + 1.5, r + 1.5);
             return;
         }
 
@@ -1251,7 +1268,9 @@ public sealed class PipelineMapControl : Control
     }
 
     private static string NodeKindLabel(PNode n) =>
-        n.IsStation || n.Type == "CS" ? "Kompresör İstasyonu" : TypeLabel(n.Type);
+        n.Type is "PS" or "PT" or "OILDEPO" ? TypeLabel(n.Type)
+        : n.IsStation || n.Type == "CS" ? "Kompresör İstasyonu"
+        : TypeLabel(n.Type);
 
     private static string TypeLabel(string type) => type switch
     {

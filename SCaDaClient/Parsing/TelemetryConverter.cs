@@ -32,19 +32,13 @@ public sealed class TelemetryConverter : JsonConverter<TelemetryBase>
         return type switch
         {
             "compressor" => el.Deserialize<CompressorTelemetry>(inner)!,
-            // §11.4 D3: segment gelince alan-yoklaması — gerçek boru mu, offtake/junction mu?
             "segment" => el.TryGetProperty("s_inlet_pressure_bar", out _)
-                ? el.Deserialize<SegmentTelemetry>(inner)!   // gerçek boru parçası
-                : el.Deserialize<PointTelemetry>(inner)!,    // offtake / junction noktası
-            "ugs"        => el.Deserialize<StorageTelemetry>(inner)!,
-            "border_entry" => el.Deserialize<BorderTelemetry>(inner)!,
-            "fsru"       => el.Deserialize<FsruTelemetry>(inner)!,
-            "lng_terminal" => el.Deserialize<LngTerminalTelemetry>(inner)!,
-            "oil_pump"   => el.Deserialize<OilPumpTelemetry>(inner)!,
+                ? el.Deserialize<SegmentTelemetry>(inner)!
+                : el.Deserialize<PointTelemetry>(inner)!,
+            "ugs" or "border_entry" or "fsru" or "lng_terminal"
+                => el.Deserialize<PointTelemetry>(inner)!,
+            "oil_pump" => el.Deserialize<OilPumpTelemetry>(inner)!,
             "oil_storage" => el.Deserialize<OilStorageTelemetry>(inner)!,
-            // Bilinmeyen tipte FIRLATMA: canli akis kirilmasin. Ham JSON zaten
-            // MySQL'e kaydedilir; DB narrow acilimi sensor_definitions'a bagli
-            // oldugu icin yeni tip tanimi eklenince otomatik devreye girer.
             _ => el.Deserialize<GenericTelemetry>(inner)!
         };
     }

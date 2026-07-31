@@ -207,17 +207,6 @@ public class SnapshotSource : IPipelineSource
                 Math.Round(stationAi.Rul, 0),
                 true);
 
-        // Petrol pompa: AI yok — canlı sensör kondisyon skoru (pasta/harita için).
-        var oilUnits = UnitHealths(id);
-        double worstOil = double.NaN;
-        foreach (var u in oilUnits)
-        {
-            if (!u.HasTelemetry) continue;
-            if (double.IsNaN(worstOil) || u.Health < worstOil) worstOil = u.Health;
-        }
-        if (!double.IsNaN(worstOil))
-            return new NodeSnap(Math.Round(worstOil, 1), 0, true);
-
         bool station = _data.StationUnits.ContainsKey(id) || InferTypeIsCs(id);
         return new NodeSnap(100, 0, station);
     }
@@ -252,33 +241,14 @@ public class SnapshotSource : IPipelineSource
             var t = Telem(u.Id);
             if (t != null && t.Count > 0 && LooksLikeOilPump(t))
             {
-                // Petrol: AI health yok — titreşim/yatak’tan görsel kondisyon (pasta dilimi).
-                result.Add(new UnitHealth(u.Id, u.Id, OilConditionScore(t), true));
+                // Petrol: AI sağlık yok — haritada gri (veri yok) dilimi.
+                result.Add(new UnitHealth(u.Id, u.Id, 0, false));
                 continue;
             }
 
             result.Add(new UnitHealth(u.Id, u.Id, 100, false));
         }
         return result;
-    }
-
-    /// <summary>
-    /// Petrol pompa görsel skoru (0–100). AI health yerine canlı sensör bantları;
-    /// yalnız harita pastası / özet için — gaz AI sağlığı ile karıştırılmaz.
-    /// </summary>
-    private static double OilConditionScore(IReadOnlyDictionary<string, double> t)
-    {
-        double vib = Pick(t, "s_vibration_mm_s");
-        double temp = Pick(t, "s_bearing_temp_c");
-
-        double vibScore = vib <= 2 ? 100
-            : vib >= 6 ? 8
-            : 100 - (vib - 2) / 4.0 * 92;
-        double tempScore = temp <= 55 ? 100
-            : temp >= 85 ? 12
-            : 100 - (temp - 55) / 30.0 * 88;
-
-        return Math.Round(Math.Clamp(Math.Min(vibScore, tempScore), 0, 100), 1);
     }
 
     public IReadOnlyList<SnapshotUnit> UnitList(string stationId) =>
@@ -330,8 +300,7 @@ public class SnapshotSource : IPipelineSource
 
             result.Add(new UnitPerf(
                 UnitId: id,
-                Health: hasAi ? Math.Round(ai.Health, 1)
-                    : (isOil && hasLive ? OilConditionScore(t!) : 0),
+                Health: hasAi ? Math.Round(ai.Health, 1) : 0,
                 Rul: hasAi ? Math.Round(ai.Rul, 0) : 0,
                 Vibration: Math.Round(vib, 2),
                 BearingTemp: Math.Round(temp, 1),

@@ -30,8 +30,9 @@ public sealed class SCaDaApiClient : IDisposable
     {
         if (_disposed) throw new ObjectDisposedException(nameof(SCaDaApiClient));
 
+        // Live server paths are lowercase (/api/scada/...), not /api/SCaDa/...
         using var resp = await _http.GetAsync(
-            "/api/SCaDa/live_data",
+            "/api/scada/live_data",
             HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
 
@@ -56,7 +57,7 @@ public sealed class SCaDaApiClient : IDisposable
     {
         if (_disposed) throw new ObjectDisposedException(nameof(SCaDaApiClient));
 
-        using var resp = await _http.GetAsync($"/api/SCaDa/node/{Uri.EscapeDataString(nodeId)}", ct);
+        using var resp = await _http.GetAsync($"/api/scada/node/{Uri.EscapeDataString(nodeId)}", ct);
         resp.EnsureSuccessStatusCode();
 
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);

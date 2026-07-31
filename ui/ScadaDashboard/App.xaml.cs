@@ -16,7 +16,7 @@ public partial class App : Application
     {
         // Kalici temayi ilk pencere olusmadan uygula (kaynak fircalari + harita paleti).
         var s = Services.AppSettings.Load();
-        ThemeManager.Apply(s.LightTheme ? ThemeMode.Acik : ThemeMode.Koyu);
+        ThemeManager.Apply(s.LightTheme ? ScadaDashboard.ThemeMode.Acik : ScadaDashboard.ThemeMode.Koyu);
         base.OnStartup(e);
     }
 

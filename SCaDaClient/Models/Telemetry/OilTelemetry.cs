@@ -25,6 +25,10 @@ public sealed class OilPumpTelemetry : TelemetryBase
 
     [JsonPropertyName("s_vibration_mm_s")]
     public double VibrationMmS { get; set; }
+
+    /// <summary>running | standby (live_data status alanı).</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
 }
 
 /// <summary>

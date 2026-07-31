@@ -20,6 +20,7 @@ public partial class SettingsWindow : Window
         LightThemeBox.IsChecked = current.LightTheme;
         LiveUrlBox.Text = current.LiveUrl;
         AiRespondUrlBox.Text = current.AiRespondUrl;
+        DbConnBox.Text = current.DatabaseConnectionString;
         ThresholdSlider.Value = current.CriticalHealthThreshold;
     }
 
@@ -27,6 +28,7 @@ public partial class SettingsWindow : Window
     {
         string liveUrl = LiveUrlBox.Text.Trim();
         string aiUrl = AiRespondUrlBox.Text.Trim();
+        string dbConn = DbConnBox.Text.Trim();
 
         if (!Uri.TryCreate(liveUrl, UriKind.Absolute, out _))
         {
@@ -45,6 +47,7 @@ public partial class SettingsWindow : Window
         {
             LiveUrl = liveUrl,
             AiRespondUrl = aiUrl,
+            DatabaseConnectionString = dbConn,
             LightTheme = LightThemeBox.IsChecked == true,
             PollIntervalSeconds = Result.PollIntervalSeconds,
             TimeoutSeconds = Result.TimeoutSeconds,
@@ -58,11 +61,11 @@ public partial class SettingsWindow : Window
     }
 
     private void Theme_Changed(object sender, RoutedEventArgs e)
-        => ThemeManager.Apply(LightThemeBox.IsChecked == true ? ThemeMode.Acik : ThemeMode.Koyu);
+        => ThemeManager.Apply(LightThemeBox.IsChecked == true ? ScadaDashboard.ThemeMode.Acik : ScadaDashboard.ThemeMode.Koyu);
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        ThemeManager.Apply(_origLight ? ThemeMode.Acik : ThemeMode.Koyu);
+        ThemeManager.Apply(_origLight ? ScadaDashboard.ThemeMode.Acik : ScadaDashboard.ThemeMode.Koyu);
         DialogResult = false;
     }
 }

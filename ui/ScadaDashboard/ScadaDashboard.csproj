@@ -8,7 +8,7 @@
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -35,10 +35,9 @@
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Kisi 2'nin resmi API istemcisi: /live_data poll (LiveDataService) +
-         /node/{id} (ScadaApiClient). Canli veri yolu bu istemciden gecer. -->
-    <ProjectReference Include="..\..\ScadaClient\ScadaClient.csproj" />
+    <ItemGroup>
+    <!-- Kisi 2 API istemcisi (net8): /live_data poll + /node/{id}. -->
+    <ProjectReference Include="..\..\ScadaClient\SCaDaClient.csproj" />
   </ItemGroup>
 
 </Project>

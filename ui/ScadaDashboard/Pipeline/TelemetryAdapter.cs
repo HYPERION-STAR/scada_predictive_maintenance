@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ScadaClient.Models.Telemetry;
+using SCaDaClient.Models.Telemetry;
 
 namespace ScadaDashboard.Pipeline;
 
@@ -12,7 +12,7 @@ internal readonly record struct SensorMaps(
     IReadOnlyDictionary<string, string> Status);
 
 /// <summary>
-/// ScadaClient'ın tipli telemetri DTO'larını UI sensör sözlüğüne çevirir.
+/// SCaDaClient telemetri DTO'larını UI sensör sözlüğüne çevirir.
 /// Gaz (s_7_…) ve petrol pompa (s_vibration_mm_s) alanları aynı haritada durur.
 /// </summary>
 internal static class TelemetryAdapter

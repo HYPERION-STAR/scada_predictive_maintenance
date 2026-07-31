@@ -1,8 +1,8 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using ScadaClient.Parsing;
-using ScadaClient.Services;
+using SCaDaClient.Parsing;
+using SCaDaClient.Services;
 
 namespace ScadaDashboard.Pipeline;
 
@@ -197,7 +197,7 @@ public static class ApiSnapshotLoader
         catch { /* live_data yoksa /node dene */ }
 
         // 2) Eksik gaz istasyonları için /node/{id}
-        using var api = new ScadaApiClient(http, new ScadaJsonParser());
+        using var api = new SCaDaApiClient(http, new SCaDaJsonParser());
         var missing = csNodes.Where(n => !stationUnits.ContainsKey(n.Id)).Select(n => n.Id).ToList();
         missing.AddRange(oilNodes.Where(n => !stationUnits.ContainsKey(n.Id)).Select(n => n.Id));
         if (missing.Count > 0)
@@ -225,7 +225,7 @@ public static class ApiSnapshotLoader
     }
 
     private static async Task<(string Id, IReadOnlyList<SnapshotUnit> Units)> FetchUnitsAsync(
-        ScadaApiClient api, string id)
+        SCaDaApiClient api, string id)
     {
         try
         {

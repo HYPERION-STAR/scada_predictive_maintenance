@@ -598,6 +598,15 @@ public sealed class PipelineMapControl : Control
 
         if (n.IsStation)
         {
+            // Petrol pompalarında AI sağlık yok — her zaman gri.
+            if (n.Type is "PS" or "PT")
+            {
+                dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(70, UnknownCol.R, UnknownCol.G, UnknownCol.B)), null, p, r + 6, r + 6);
+                dc.DrawEllipse(new SolidColorBrush(UnknownCol), bgPen, p, r, r);
+                dc.DrawEllipse(null, new Pen(new SolidColorBrush(OilCol), Math.Max(1.2, 1.8 * nodeScale)), p, r + 1, r + 1);
+                return;
+            }
+
             var units = _source?.UnitHealths(n.Id) ?? Array.Empty<UnitHealth>();
             bool anyAi = false;
             foreach (var u in units) if (u.HasTelemetry) { anyAi = true; break; }
@@ -1158,7 +1167,7 @@ public sealed class PipelineMapControl : Control
             var n = PipelineTopology.NodeById(_hoverId);
             if (n is null) return; // hover id düğüm listesinde yoksa balon çizme
             title = n.Name; sub = n.Id;
-            if (n.IsStation)
+            if (n.Type == "CS")
             {
                 var snap = _source.Node(n.Id);
                 var units = _source.UnitHealths(n.Id);
@@ -1179,6 +1188,8 @@ public sealed class PipelineMapControl : Control
                         rowList.Add(u.HasTelemetry ? $"  {u.UnitId}: %{u.Health:0}" : $"  {u.UnitId}: veri yok");
                 rows = rowList.ToArray();
             }
+            else if (n.Type is "PS" or "PT")
+            { dot = UnknownCol; rows = new[] { TypeLabel(n.Type) }; }
             else if (n.Type == "STORAGE")
             { dot = NodeTypeColor(n.Type); rows = new[] { $"Depo doluluk: %{_source.Level(n.Id):0}" }; }
             else
@@ -1258,8 +1269,10 @@ public sealed class PipelineMapControl : Control
             if (i == _clusterHover)
                 dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(45, AccentCol.R, AccentCol.G, AccentCol.B)),
                     null, new Rect(x + 3, ry, w - 6, _clusterRowH), 5, 5);
-            double hh = n.IsStation ? _source.Node(n.Id).Health : 100;
-            var col = n.IsStation ? ((SolidColorBrush)HealthBrush(hh)).Color : NodeTypeColor(n.Type);
+            double hh = n.Type == "CS" ? _source.Node(n.Id).Health : 100;
+            var col = n.Type == "CS" ? ((SolidColorBrush)HealthBrush(hh)).Color
+                : n.Type is "PS" or "PT" ? UnknownCol
+                : NodeTypeColor(n.Type);
             dc.DrawEllipse(new SolidColorBrush(col), null, new Point(x + pad + 4, ry + rowPad + names[i].Height / 2), 5, 5);
             dc.DrawText(names[i], new Point(x + pad + dotW, ry + rowPad));
             dc.DrawText(kinds[i], new Point(x + pad + dotW, ry + rowPad + names[i].Height));

@@ -5,17 +5,25 @@ namespace ScadaDashboard.Services;
 
 /// <summary>
 /// Uygulama ayarları. Exe klasöründeki settings.json'a yazılır/okunur.
-/// Tek veri kaynağı: Canlı API (+ isteğe bağlı AI respond overlay).
+/// Gaz: canlı API. Petrol: MySQL live_entity_current (erişilemezse canlıya düşer).
+/// Sağlık/RUL: AI respond overlay.
 /// </summary>
 public sealed class AppSettings
 {
-    /// <summary>Canlı telemetri endpoint'i (topoloji + sensors sunucudan).</summary>
+    /// <summary>Canlı telemetri endpoint'i (topoloji + gaz sensors sunucudan).</summary>
     public string LiveUrl { get; set; } = "http://100.114.223.5:8000/api/scada/live_data";
 
     /// <summary>
     /// AI/DB uç noktası — health/rul ve hub alanları (zorunlu; yerel proxy yok).
     /// </summary>
     public string AiRespondUrl { get; set; } = "http://100.96.102.16:9000";
+
+    /// <summary>
+    /// MySQL bağlantısı — petrol (oil_pump / oil_storage) <c>live_entity_current</c>'tan.
+    /// Boş bırakılırsa petrol de canlı API'den gelir.
+    /// </summary>
+    public string DatabaseConnectionString { get; set; } =
+        "Server=100.96.102.16;Port=3306;Database=pipeline_digital_twin;User ID=root;Password=SCaDa1974.;SslMode=Preferred";
 
     /// <summary>Açık tema (varsayılan koyu).</summary>
     public bool LightTheme { get; set; } = false;
@@ -66,6 +74,7 @@ public sealed class AppSettings
             {
                 LiveUrl,
                 AiRespondUrl,
+                DatabaseConnectionString,
                 LightTheme,
                 PollIntervalSeconds,
                 TimeoutSeconds,

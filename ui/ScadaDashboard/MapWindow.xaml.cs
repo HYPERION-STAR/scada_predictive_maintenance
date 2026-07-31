@@ -356,8 +356,7 @@ public partial class MapWindow : Window
             statusBrush = new SolidColorBrush(running
                 ? Color.FromRgb(0x2E, 0xCC, 0x71)
                 : Color.FromRgb(0x8C, 0xA3, 0xB8));
-            // Titreşim/kondisyon bandına göre nokta rengi (petrolde AI health yok)
-            dot = !p.HasLive ? Color.FromRgb(0x5B, 0x6B, 0x7C) : HealthColorCs(p.Health);
+            dot = Color.FromRgb(0x5B, 0x6B, 0x7C);
 
             return new UnitPerfRow
             {
@@ -366,7 +365,7 @@ public partial class MapWindow : Window
                 Status = status,
                 StatusBrush = statusBrush,
                 HealthDot = new SolidColorBrush(dot),
-                HealthText = p.HasLive ? $"%{p.Health:0}" : "—",
+                HealthText = "—",
                 VibText = p.HasLive ? $"{p.Vibration:0.00}" : "—",
                 TempText = p.HasLive ? $"{p.BearingTemp:0.0}°" : "—",
                 PressText = p.HasLive ? $"{p.DischargePressure:0.0}" : "—",
@@ -438,8 +437,8 @@ public partial class MapWindow : Window
       : h >= 20 ? Color.FromRgb(0xE6, 0x7E, 0x22)
       : Color.FromRgb(0xE7, 0x4C, 0x3C);
 
-    // Canlı kaynak: topoloji /segments (+ /nodes varsa), telemetri /live_data,
-    // sağlık AI respond. Snapshot dosyası kullanılmaz.
+    // Canlı kaynak: topoloji /segments (+ /nodes varsa), gaz telemetri /live_data,
+    // petrol telemetri MySQL live_entity_current (yoksa canlı), sağlık AI respond.
     private static bool TryLoadApiLive(string liveUrl, Services.AppSettings s, out LiveSnapshotSource source)
     {
         try
@@ -449,7 +448,8 @@ public partial class MapWindow : Window
             if (data.Nodes.Count == 0) { source = null!; return false; }
             PipelineTopology.Load(data.Nodes, data.Segments);
             source = new LiveSnapshotSource(
-                data, baseUrl, s.PollIntervalSeconds, s.TimeoutSeconds, s.AiRespondUrl);
+                data, baseUrl, s.PollIntervalSeconds, s.TimeoutSeconds, s.AiRespondUrl,
+                s.DatabaseConnectionString);
             return true;
         }
         catch
@@ -513,7 +513,7 @@ public partial class MapWindow : Window
     private void LayerGrid(object sender, RoutedEventArgs e)
     { if (Map != null && sender is System.Windows.Controls.CheckBox c) Map.ShowGrid = c.IsChecked == true; }
 
-    // AI sarmalayıcı özeti: min health / kritik / sızıntı / zaman.
+    // AI sarmalayıcı özeti.
     private void UpdateAiStatus()
     {
         if (_source is LiveSnapshotSource { AiStatus: { } st })
@@ -524,9 +524,7 @@ public partial class MapWindow : Window
         }
         else if (_source is LiveSnapshotSource live && !string.IsNullOrWhiteSpace(_settings.AiRespondUrl))
         {
-            AiStatusText.Text = live.HasAiOverlay
-                ? ""
-                : "  •  AI: bekleniyor…";
+            AiStatusText.Text = live.HasAiOverlay ? "" : "  •  AI: bekleniyor…";
         }
         else
         {
